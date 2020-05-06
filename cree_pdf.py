@@ -15,13 +15,25 @@ for file in lfpy:
     exec(s)
     fig = plt.figure(1, figsize=(10, 6))
     plt.clf()
-    plt.title(pays + ' jour '+str(jour)+' depuis le '+datedebut+'\n'
+    plt.title(pays + ' day '+str(jour)+' since '+datedebut+'\n'
               +file[14:-3].replace('_pvoy','_\npvoy').replace('_',' '))
     plt.plot([j for j,m,c,i,g,mf in hist if mf != -1],
              [mf for j,m,c,i,g,mf in hist if mf != -1],'o')
     plt.plot([j for j,m,c,i,g,mf in hist if m != 0],
              [m for j,m,c,i,g,mf in hist if m != 0])
+    plt.savefig(file + '_limite.pdf')
+    plt.savefig(file + '_limite.png')
+    hist1 = [x for x in hist if x[0] < 0 or x[5] != -1]
+    fig = plt.figure(1, figsize=(10, 6))
+    plt.clf()
+    plt.title(pays + ' day '+str(jour)+' since '+datedebut+'\n'
+              +file[14:-3].replace('_pvoy','_\npvoy').replace('_',' '))
+    plt.plot([j for j,m,c,i,g,mf in hist1 if mf != -1],
+             [mf for j,m,c,i,g,mf in hist1 if mf != -1],'o')
+    plt.plot([j for j,m,c,i,g,mf in hist1 if m != 0],
+             [m for j,m,c,i,g,mf in hist1 if m != 0])
     plt.savefig(file + '.pdf')
+    plt.savefig(file + '.png')
     #plt.show(False)
 
     
