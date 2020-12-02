@@ -2,6 +2,7 @@
 
 ######################################################################
 from outils import *
+from donneescovid import datapositifage
 
 ######################################################################
 # frequentations des lieux
@@ -20,6 +21,7 @@ f.close()
 import zipfile
 with zipfile.ZipFile('Region_Mobility_Report_CSVs.zip', 'r') as zip_ref:
     zip_ref.extractall('mobilite_google')
+    
 print('fait')
 
 f = open('mobilite_google/2020_FR_Region_Mobility_Report.csv','r')
@@ -79,7 +81,7 @@ datamobilite = {'nom': 'mobilite',
                 'dimensions': ['departements','jours','mobilites'],
                 'departements': departements,
                 'jours': [x[0] for x in datalieux[1]],
-                'mobilites': ['commerces et espaces de loisir',
+                'mobilites': ['commerces et espaces de loisir (dont restaurants et bars)',
                               "magasins d'alimentation et pharmacies",
                               'parcs',
                               'arrêts de transports en commun',
@@ -162,10 +164,10 @@ for mois in range(2,12):
 param = data[0] # les bons des parametres meteo mesures
 # explication ici: https://donneespubliques.meteofrance.fr/?fond=produit&id_produit=90&id_rubrique=32
 
-#nomsmeteo = ['pression','humidité','precip.24h','température','nébulosité', 'vent']
+#nomsmeteo = ['pression','humidité','précipitations sur 24h','température','nébulosité', 'vent']
 #imeteo = [param.index(x) for x in ['pres','u','rr24','t','n','ff']]
 
-nomsmeteo = ['pression','humidité','precip.24h','température', 'vent']
+nomsmeteo = ['pression','humidité','précipitations sur 24','température', 'vent']
 imeteo = [param.index(x) for x in ['pres','u','rr24','t','ff']]
 
 #nomsmeteo = ['humidité']
@@ -394,7 +396,7 @@ def charge_data(url):
     t = [[]]*97
     for d in range(1,96):
         try:
-            print(sdep(d) + ' ', end = '')
+            print(sdep(d) + ' ', end = '', flush=True)
             data,titre = charge(url_dep(url,d))
             try:
                 ls = url.split('indic=')
@@ -454,6 +456,13 @@ datarea = charge_donnees('https://geodes.santepubliquefrance.fr/GC_infosel.php?l
 
 print('réanimations fait')
 
+datareatot = charge_donnees('https://geodes.santepubliquefrance.fr/GC_infosel.php?lang=fr&allindics=0&nivgeo=dep&view=map2&codgeo=DEPARTEMENT&dataset=covid_hospit&indic=rea',
+                         'réanimations total',
+                         'Nombre de personnes actuellement en réanimation (SR/SI/SC) avec diagnostic COVID-19')
+
+print('réanimations total fait')
+
+
 datadeces = charge_donnees('https://geodes.santepubliquefrance.fr/GC_infosel.php?lang=fr&allindics=0&nivgeo=dep&view=map2&codgeo=DEPARTEMENT&dataset=covid_hospit_incid&indic=incid_dc',
                            'décès',
                            'Nombre quotidien de nouveaux décès avec diagnostic COVID-19 déclarés en 24h')
@@ -466,17 +475,30 @@ dataurge = charge_donnees('https://geodes.santepubliquefrance.fr/GC_infosel.php?
 
 print('urgences fait')
 
+datapos = charge_donnees('https://geodes.santepubliquefrance.fr/GC_infosel.php?lang=fr&allindics=0&nivgeo=dep&view=map2&codgeo=DEPARTEMENT&dataset=sp_pos_quot&indic=p&filters=cl_age90=0',
+                         'cas positifs',
+                         'Nombre de personnes positives - Quotidien - tous âges')
+
+print('positifs fait')
+
+dataposage = {}
+for age in [str(x)+'9' for x in range(9)]+['90']:
+    dataposage[age] = charge_donnees('https://geodes.santepubliquefrance.fr/GC_infosel.php?lang=fr&allindics=0&nivgeo=dep&view=map2&codgeo=DEPARTEMENT&dataset=sp_pos_quot&indic=p&filters=cl_age90=' + age,
+                                     'cas positifs ' + age ,
+                                     'Nombre de personnes positives ' + age)
+
+print('positifs fait')
 ######################################################################
 # on ne garde que les departements communs aux donnees
 
 deps = datahospi['departements'][:]
 [[deps.remove(d) for d in deps if  d not in t['departements'] and d in deps]
- for t in [datarea, datadeces, dataurge, datacontexte]]
+ for t in [datarea,datareatot, datadeces, dataurge, datacontexte, datapos] + [dataposage[age] for age in dataposage]]
 
-for t in [datahospi,datarea, datadeces, dataurge, datacontexte]:
+for t in [datahospi,datarea,datareatot, datadeces, dataurge, datacontexte, datapos] + [dataposage[age] for age in dataposage]:
     t['valeurs'] = np.array([t['valeurs'][t['departements'].index(d)] for d in deps])
     t['departements'] = deps
-    
+
 ######################################################################
 # prevision
 ######################################################################
@@ -489,7 +511,7 @@ for t in [datahospi,datarea, datadeces, dataurge, datacontexte]:
 # dj décalage du début de Lt par rapport au début de Ht
 # rend C telle que sum_d ||Lt[d].C - Ht[d]||^2 minimale
 # et les sous-tableaux décalés de dj pour lesquels C est obtenu
-def erreur(dj,Lj,Lt,Hj,Ht):
+def erreur(dj,Lj,Lt,Hj,Ht,decale_limite = 30):
     e = -1
     ndeps,njL,nlieux = np.shape(Lt)
     ndeps,njH = np.shape(Ht)
@@ -499,7 +521,7 @@ def erreur(dj,Lj,Lt,Hj,Ht):
     LJ = Lj[max(0,-dj):min(njL,njH-dj)]
     HJ = Hj[max(0,dj):min(njH,njL+dj)]
     C = np.zeros((ndeps,nlieux))
-    if abs(decal) < 30 and len(LJ) != 0 : # décalage max des fins des tableaux
+    if abs(decal) < decale_limite and len(LJ) != 0 : # décalage max des fins des tableaux
         e = 0
         for d in range(ndeps):
             A = np.transpose(L[d]) @ L[d]
@@ -512,41 +534,44 @@ def erreur(dj,Lj,Lt,Hj,Ht):
         pass
     return(e,LJ,L,HJ,H,C)
 
+def dernier_min_local(le):
+    lmin = []
+    for i in range(len(le)-2):
+        e0 = le[i][1] # le[0] = decal,e,LJ,L,HJ,H,C
+        e1 = le[i+1][1]
+        e2 = le[i+2][1]
+        if e1 < e0 and e1 < e2:
+            lmin.append(le[i])
+    #print('mins:',len(lmin))
+    return(lmin[-1])
+
 # rend le decalage des dates qui minimise l'erreur de prévision,
 # le vecteur de prévision et les sous-tableaux qui donnent cette erreur min
 # (decalage de la fin du contexte par rapport à la fin des données)
-def fit(Lj,Lt,Hj,Ht):
+def fit(Lj,Lt,Hj,Ht, decale_limite = 30):
     ndeps,njL,nlieux = np.shape(Lt)
     ndeps,njH = np.shape(Ht)
     erreurs = []
-    emin = 10000000000000000000
-    dmin = 0
-    Cmin = None
-    Lmin,Hmin,LJmin,HJmin = None,None,None,None
     for dj in range(-njL,njH):
         decal = njH - (njL + dj)
         try:
-            e,LJ,L,HJ,H,C = erreur(dj,Lj,Lt,Hj,Ht)
-            #print(dj,e)
-            if e > 0:
-                erreurs.append((decal,e))
-                if e < emin:
-                    emin = e
-                    dmin = decal
-                    Cmin = C
-                    Lmin,Hmin,LJmin,HJmin = L,H,LJ,HJ
+            e,LJ,L,HJ,H,C = erreur(dj,Lj,Lt,Hj,Ht, decale_limite = decale_limite)
+            if e > 0 and num_de_jour(LJ[-1]) < num_de_jour(HJ[-1]):
+                erreurs.append((decal,e,LJ,L,HJ,H,C))
         except:
             print('probleme avec dj = ',dj)
-    erreurs = np.array(erreurs)
-    # erreur minimale, C coefs des lieux
-    C = Cmin
-    L,H,LJ,HJ = Lmin,Hmin,LJmin,HJmin
+    decal,emin,LJ,L,HJ,H,C = dernier_min_local(sorted(erreurs,key=lambda x:x[0]))
+    print('dernier min local:', decal,emin)
     decalage = 0
-    #print(Lj[-1],Hj[-1],dmin, emin, njH,njL,C)
+    plt.clf()
+    plt.plot([x[0] for x in erreurs],[x[1] for x in erreurs],'o-')
+    plt.grid()
+    plt.show(False)
     try:
         while HJ[-1-decalage] != LJ[-1]:
             decalage += 1
     except:
+        print('decalage trop grand')
         plt.clf()
         plt.plot([x[0] for x in erreurs],[x[1] for x in erreurs])
         plt.grid()
@@ -556,24 +581,22 @@ def fit(Lj,Lt,Hj,Ht):
 ######################################################################
 # prévision des données
 
-def prevision(datacontexte,data):
+def prevision(datacontexte,data, decale_limite = 30):
     #print('prevision', data['nom'])
     A,Aj = datacontexte['valeurs'], datacontexte['jours']
     Bj = data['jours']
     B = np.array([lissage(dep,7) for dep in data['valeurs']])
-    Bd = np.array([derivee(dep,largeur=2) for dep in B])
-    decalage,C,e = fit(Aj,A,Bj,Bd)
-    # si le decalage < 0, pas de prevision du futur...
-    f = 0
-    j = Aj[-1]
-    while num_de_jour(j) > num_de_jour(Bj[-1]):
-        j = jour_de_num[num_de_jour(j)-1]
-        f = f + 1
+    Bd = np.array([derivee(dep) for dep in B])
+    f = num_de_jour(Aj[-1]) - num_de_jour(Bj[-1])
+    if f >= 0:
+        Aj = Aj[:-f-1]
+        A = A[:,:-f-1,:]
+    decalage,C,e = fit(Aj,A,Bj,Bd, decale_limite = decale_limite)
     ldB = {} # prévision des derivees pour les derniers jours des contextes
     for j in range(decalage):
         db = np.zeros(np.shape(B[:,0]))
-        db = db + np.array([A[d,j-f-decalage,:] @ C[d] for d in range(len(C))])
-        nj = Aj[j-f-decalage]
+        db = db + np.array([A[d,j-decalage,:] @ C[d] for d in range(len(C))])
+        nj = Aj[j-decalage]
         ldB[addday(nj,decalage-1)] = db
     bj = B[:,-1]
     j = Bj[-1]
@@ -582,7 +605,8 @@ def prevision(datacontexte,data):
     while j in ldB:
         P.append(bj)
         Pj.append(j)
-        bj = bj + ldB[j]
+        bjj = bj + ldB[j]
+        bj = np.array([max(x,0) for x in bjj])
         j = addday(j,1)
     prev = {'nom': data['nom'],
             'decalage': decalage,
@@ -597,18 +621,16 @@ def previsions(datacontexte,data,n):
     A,Aj = datacontexte['valeurs'], datacontexte['jours']
     Bj = data['jours']
     B = np.array([lissage(dep,7) for dep in data['valeurs']])
-    Bd = np.array([derivee(dep,largeur=2) for dep in B])
+    Bd = np.array([derivee(dep) for dep in B])
+    f = num_de_jour(Aj[-1]) - num_de_jour(Bj[-1])
+    if f >= 0:
+        Aj = Aj[:-f-1]
+        A = A[:,:-f-1,:]
     decalage,C,e = fit(Aj,A,Bj,Bd)
-    # si le decalage < 0, pas de prevision du futur...
-    f = 0
-    j = Aj[-1]
-    while num_de_jour(j) > num_de_jour(Bj[-1]):
-        j = jour_de_num[num_de_jour(j)-1]
-        f = f + 1
     ldB = {} # prévision des derivees pour les derniers jours des contextes
     for j in range(-n+1,decalage):
         db = np.zeros(np.shape(B[:,0]))
-        db = db + np.array([A[d,j-f-decalage,:] @ C[d] for d in range(len(C))])
+        db = db + np.array([A[d,j-decalage,:] @ C[d] for d in range(len(C))])
         nj = Aj[j-decalage]
         ldB[addday(nj,decalage-1)] = db
     lprev = []
@@ -639,19 +661,39 @@ def previsions(datacontexte,data,n):
 
 P = [prevision(datacontexte,data) for data in [dataurge,datahospi,datarea,datadeces]]
 
-titre = 'prévisions France\nà partir des données de mobilité Google et des données météo\ndécalages:\n'
-for p in P:
-    titre += p['nom'] + ' ' + str(p['decalage']) + ' '
-
 trace([(zipper(p['jours'], np.sum(p['valeurs'],axis = 1)),
-        p['nom'],'o')
+        p['nom'],'=')
        for p in P]
       +
       [(zipper(t['jours'],lissage(np.sum(t['valeurs'], axis = 0),7))[-120:],
-        '','-')
+        '','--')
        for t in [dataurge,datahospi,datarea,datadeces]],
-      titre,
+      'prévisions à partir des données de mobilité Google et des données météo\n',
       'donnees/_prevision_par_mobilite')
+
+Preatot = [prevision(datacontexte,data) for data in [datareatot]]
+
+trace([(zipper(p['jours'], np.sum(p['valeurs'],axis = 1)),
+        p['nom'],'=')
+       for p in Preatot]
+      +
+      [(zipper(t['jours'],lissage(np.sum(t['valeurs'], axis = 0),7))[-120:],
+        '','--')
+       for t in [datareatot]],
+      'prévisions des patients en réanimation\n',
+      'donnees/_prevision_reatot_par_mobilite')
+# previsions a differentes dates
+data = datareatot
+lP = previsions(datacontexte,data,50)
+trace([(zipper(p['jours'], np.sum(p['valeurs'],axis = 1)),
+        '','-')
+       for p in lP]
+      +
+      [(zipper(t['jours'],lissage(np.sum(t['valeurs'], axis = 0),7)),
+        '','=')
+       for t in [data]],
+      'prévisions des patients en réanimation\n',
+      '_previsions_mult_' + data['nom'])
 
 # previsions a differentes dates
 data = dataurge
@@ -665,6 +707,33 @@ trace([(zipper(p['jours'], np.sum(p['valeurs'],axis = 1)),
        for t in [data]],
       'urgences',
       '_previsions_' + data['nom'])
+
+######################################################################
+# prevision cas positifs
+pp = prevision(datacontexte, datapos)
+
+trace([(zipper(p['jours'], np.sum(p['valeurs'],axis = 1)),
+        p['nom'],'=')
+       for p in [pp]]
+      +
+      [(zipper(t['jours'],lissage(np.sum(t['valeurs'], axis = 0),7))[-120:],
+        '','-')
+       for t in [datapos]],
+      'prévision des cas positifs\n',
+      'donnees/_prevision_positifs')
+
+Page = [(age,prevision(datacontexte, dataposage[age]))
+        for age in sorted(dataposage)]
+
+trace([(zipper(p['jours'], np.sum(p['valeurs'],axis = 1)),
+        '','=')
+       for (age,p) in Page]
+      +
+      [(zipper(t['jours'],lissage(np.sum(t['valeurs'], axis = 0),7))[-60:],
+        age,'--')
+       for (age,t) in [(age,dataposage[age]) for age in sorted(dataposage)]],
+      "prévision des cas positifs par tranche d'âge",
+      'donnees/_prevision_positifs_ages', xlabel = 20)
 
 ####################### dispersion des coefficients des différents départements
 def normalisecoef(C):
@@ -682,32 +751,60 @@ plt.xticks(range(len(datacontexte['contextes'])),
            [x[:7] for x in datacontexte['contextes']],
            rotation = 45,fontsize = 8)
 plt.grid()
-plt.savefig('donnees/_dispersion_contexte.pdf')
-plt.savefig('donnees/_dispersion_contexte.png')
+plt.title('dispersion des coefficients selon les départements\n (prévision des urgences)',
+          fontdict = {'size':8})
+plt.savefig('donnees/_dispersion_contexte.pdf', dpi = 600)
+plt.savefig('donnees/_dispersion_contexte.png', dpi = 600)
 plt.show(False)
 
+Ptout = P + [pp] + Preatot
+
 rapport = []
-rapport.append(['France' ] + [p['nom'] for p in P])
-rapport.append(['décalage'] + [str(p['decalage']) for p in P])
-rapport.append(['erreur moyenne'] + ["%4.2f" % p['erreur'] for p in P])
+rapport.append(['coefficients de prévision<br> (% du total des coef.)<br> moyenne des départements (± écart-type)<br>' ] + [p['nom'] for p in Ptout])
+rapport.append(['décalage (en jours)'] + [str(p['decalage']) for p in Ptout])
+rapport.append(['erreur moyenne (absolue, par jour et par département)'] + ["%4.2f" % p['erreur'] for p in Ptout])
 for l in range(len(datacontexte['contextes'])):
-  rapport.append([datacontexte['contextes'][l]]
-                 + [str(int(100 * np.mean(normalisecoef(p['coefficients']),
-                                          axis=0)[l]))
-                    + ' (± '
-                    + str(int(100 * np.std(normalisecoef(p['coefficients']),
-                                           axis=0)[l]))
-                    + ')'
-                    for p in P])
+    ligne = [datacontexte['contextes'][l]]
+    for p in Ptout:
+        m = int(100 * np.mean(normalisecoef(p['coefficients']), axis=0)[l])
+        e = int(100 * np.std(normalisecoef(p['coefficients']), axis=0)[l])
+        if (m+e)*(m-e) >= 0 :
+            tm = '<b>'+ str(m) + '</b>'
+        else:
+            tm = str(m)
+        ligne.append(tm + ' (± ' + str(e) + ')')
+    rapport.append(ligne)
 
 rapport = table(rapport)
-
-now = time.localtime(time.time())
-rapport += time.asctime(now)
-
 f = open('donnees/_rapport','w')
 f.write(rapport)
 f.close()
+
+######################################################################
+# tableau des coefficients par age
+rapportpos = []
+rapportpos.append(["" ] + [p['nom'] for (a,p) in Page])
+rapportpos.append(['décalage (en jours)'] + [str(p['decalage']) for (a,p) in Page])
+rapportpos.append(['erreur moyenne (absolue, par jour et par département)'] + ["%4.2f" % p['erreur'] for (a,p) in Page])
+for l in range(len(datacontexte['contextes'])):
+    ligne = [datacontexte['contextes'][l]]
+    for (a,p) in Page:
+        m = int(100 * np.mean(normalisecoef(p['coefficients']), axis=0)[l])
+        e = int(100 * np.std(normalisecoef(p['coefficients']), axis=0)[l])
+        if (m+e)*(m-e) >= 0 :
+            tm = '<b>'+ str(m) + '</b>'
+        else:
+            tm = str(m)
+        ligne.append(tm + ' (± ' + str(e) + ')')
+    rapportpos.append(ligne)
+
+rapportpos = table(rapportpos)
+f = open('donnees/_rapportpos','w')
+f.write(rapportpos)
+f.close()
+
+now = time.localtime(time.time())
+
 
 ######################################################################
 # mobilite google et température
@@ -718,14 +815,28 @@ trace([(zipper(datacontexte['jours'],
         datacontexte['contextes'][l],
         '-')
        for l in range(len(datacontexte['contextes']))],
-      'mobilité google:\n % de fréquentation par rapport à la moyenne\nlissage sur 7 jours\ndonnées météo, vacances',
-      'donnees/_mobilite_google')
+      'contextes',
+      'donnees/_contextes_google')
+#>>> [datacontexte['contextes'][l] for l in [0,1,4,6,9,11]]
+#['commerces et espaces de loisir (dont restaurants et bars)', "magasins d'alimentation et pharmacies", 'travail', 'résidence', 'température', 'vacances']
+trace([(zipper(datacontexte['jours'],
+               np.array(lissage(np.sum(datacontexte['valeurs'][:,:,l], axis = 0),7))
+                       / len(datacontexte['departements']))[-120:],
+        datacontexte['contextes'][l],
+        '-')
+       for l in [0,1,4,5,9,11]],
+      'contextes les plus influents (pour toutes les données, lissés sur 7 jours)',
+      'donnees/_contextes_influents')
 
+dep06 = datacontexte['departements'].index(6)
 trace([(zipper(datacontexte['jours'],
                np.array(lissage(datacontexte['valeurs'][dep06,:,l],7)))[-120:],
         datacontexte['contextes'][l],
         '-')
        for l in range(len(datacontexte['contextes']))],
-      'mobilité google 06:\n % de fréquentation par rapport à la moyenne\nlissage sur 7 jours\ndonnées météo, vacances',
-      'donnees/_mobilite06_google')
+      'contextes06',
+      'donnees/_contextes06_google')
+
+
+
 
