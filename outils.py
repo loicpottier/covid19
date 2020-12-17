@@ -7,11 +7,25 @@ import time
 import math
 import numpy as np
 import sys
+import copy
 from urlcache import *
+
+def mfloat(x):
+    try:
+        return(float(x))
+    except:
+        print('donnee pas un nombre:',x,'*******')
+        return(-100)
 
 # Obtenir l'heure et la date locale
 now = time.localtime(time.time())
 print(time.asctime(now)) # Afficher la date en format lisible
+
+def mmax(l):
+    if l == []:
+        return(1000000000000000000000000000000)
+    else:
+        return(max(l))
 
 def moyenne(l):
     return(sum(l)/len(l))
@@ -35,6 +49,8 @@ def lissagecum(L,d):
 
 # mieux aux bords (approximation linaire)
 def lissagecum(L,d): # uniquement d impair
+    if d ==1:
+        return(L)
     cumsum_vec = np.cumsum(L)
     l = (cumsum_vec[d:] - cumsum_vec[:-d]) / d
     #print(l)
@@ -49,8 +65,6 @@ def lissagecum(L,d): # uniquement d impair
 
 # lissage sur d
 def lissage(l,d,degre=0):
-    if degre == 0:
-        return(lissagecum(l,d))
     dd = d//2
     l1 = []
     for i in range(len(l)):
@@ -60,6 +74,11 @@ def lissage(l,d,degre=0):
 
 # on prend le voisinage
 def derivee(l, largeur = 1): # largeur impair
+    if largeur == 1:
+        l1 = np.array(np.concatenate([l[:1],l]))
+        ld = l1[1:] - l1[:-1]
+        ld[0] = ld[1]
+        return(ld)
     return(lissage(np.gradient(l, edge_order = 2),largeur))
 
 def integrate(l,initial = 0):
@@ -106,9 +125,9 @@ def plotcourbes(courbes,titre='',xlabel = 0):
             plt.plot(lv,'-', linewidth = 2)
         if nom != '':
             if xlabel == 0:
-                plt.text(k,lv[k],nom,fontdict = {'size':10})
+                plt.text(k,lv[k],nom,fontdict = {'size':8})
             else:
-                plt.text(xlabel,lv[xlabel],nom,fontdict = {'size':10})
+                plt.text(xlabel,lv[xlabel],nom,fontdict = {'size':8})
 
 def trace(lcourbes,titre,fichier,xlabel = 0):
     plt.clf()
@@ -120,33 +139,42 @@ def trace(lcourbes,titre,fichier,xlabel = 0):
     plt.show(False)
 
 def zipper(lj,lv):
-    return([(lj[k],lv[k]) for k in range(len(lv))])
+    if len(lv) != len(lj):
+        print(len(lj),print(lv),
+              '========> jours et valeurs pas de même longueur',
+              lj[:5],lv[:5])
+    return([(lj[k],lv[k]) for k in range(min(len(lv),len(lj)))])
 
-def chargecsv(url, zip = False):
+def chargecsv(url, zip = False, sep = ';', end = '\n'):
     s = urltexte(url, zip = zip)
-    data = [x.split(';') for x in s.split('\n')]
+    if '\r\n' in s:
+        end = '\r\n'
+    data = [x.split(sep) for x in s.split(end)]
     return(data)
 
-def chargejson(url):
-    texte = urltexte(url, zip = True)
+def chargejson(url, zip = True):
+    texte = urltexte(url, zip = zip)
     j = json.loads(texte)
     return(j)
-    
+
 def charge(url):
     j = chargejson(url)
     try:
         data = j['content']['data']['covid_hospit']
     except:
         try:
-            data = j['content']['data']['covid_hospit_incid']
+            data = j['content']['data']['covid_hospit_clage10']
         except:
             try:
-                data = j['content']['data']['sursaud_corona_quot']
+                data = j['content']['data']['covid_hospit_incid']
             except:
                 try:
-                    data = j['content']['zonrefs'][0]['values']
+                    data = j['content']['data']['sursaud_corona_quot']
                 except:
-                    data = j['content']['data']['sp_pos_quot']
+                    try:
+                        data = j['content']['zonrefs'][0]['values']
+                    except:
+                        data = j['content']['data']['sp_pos_quot']
     try:
         titre = j['content']['indicateurs'][0]['c_lib_indicateur']
     except:
@@ -220,7 +248,8 @@ def table(t):
 
 def table(t):
     ts = ('<div class="container-fluid">'
-          + '<table class="table table-hover table-sm">' # class="table table-striped">'
+          + '<table class="table table-hover table-sm">'
+          #class="table table-striped">'
           +'<thead><tr>'
           + '\n'.join(['<th scope="col"><div class="container-fluid">' + x + '</div></th>' for x in t[0]])
           + '</tr></thead>'
@@ -234,3 +263,25 @@ def table(t):
           + '</table>'
           + '</div>')
     return(ts)
+
+# super table: https://examples.bootstrap-table.com/#view-source
+
+def premieredonnee(l):
+    if l == []:
+        return(-1)
+    else:
+        return(l[0])
+
+######################################################################
+# super table bootstrap
+# https://examples.bootstrap-table.com/#view-source
+# exemple de data en json:
+# https://examples.wenzhixin.net.cn/examples/bootstrap_table/data
+
+# j = chargejson('https://examples.wenzhixin.net.cn/examples/bootstrap_table/data',zip = False)
+# j: {'total': 800,
+#     'totalNotFiltered': 800,
+#     'rows': [{'id': 0, 'price': '$0', 'name': 'Item 0'},
+#              ...
+#             ]
+#    }
