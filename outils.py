@@ -66,9 +66,12 @@ def lissagecum(L,d): # uniquement d impair
 # lissage sur d
 def lissage(l,d,degre=0):
     dd = d//2
+    # on complete comme si c'etait de periode d et lineairement
+    l0 = list(l) + [0]*d
+    l0[-d:] = [x + l[-1] - l[-1-d] for x in l[-d:]]
     l1 = []
     for i in range(len(l)):
-        ld = l[max(0,i-dd):i+dd+1]
+        ld = l0[max(0,i-dd):i+dd+1]
         l1.append(moyennen(ld,degre))
     return(l1)
 
@@ -144,6 +147,14 @@ def zipper(lj,lv):
               '========> jours et valeurs pas de même longueur',
               lj[:5],lv[:5])
     return([(lj[k],lv[k]) for k in range(min(len(lv),len(lj)))])
+
+def loadcsv(file, sep = ';', end = '\n'):
+    f = open(file,'r')
+    s = f.read()
+    if '\r\n' in s:
+        end = '\r\n'
+    data = [x.split(sep) for x in s.split(end)]
+    return(data)
 
 def chargecsv(url, zip = False, sep = ';', end = '\n'):
     s = urltexte(url, zip = zip)

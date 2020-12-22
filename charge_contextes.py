@@ -349,12 +349,19 @@ def sdep(d):
 
 j = str(now.tm_year) + '-' + str(now.tm_mon) + '-' + sdep(now.tm_mday)
 
+s = chargejson('https://covid19-static.cdn-apple.com/covid19-mobility-data/current/v3/index.json',zip = False)
+basePath = s['basePath']
+csvPath = s['regions']['en-us']['csvPath']
 data = None
 while data == None and j != '2020-11-01':
     try:
         #print(j)
-        # attention cette url change parfois
-        url = 'https://covid19-static.cdn-apple.com/covid19-mobility-data/2022HotfixDev20/v3/en-us/applemobilitytrends-' + j + '.csv'
+        # attention cette url change régulièrement,
+        # il faut inspecter le reseau dans le navigateur pour voir cette url...
+        # ou charger le json ci-dessus! si son url ne change pas...
+        # (trouvé dans le source javascript .js  avec le lien dans la page https://covid19.apple.com/mobility)
+        #url = 'https://covid19-static.cdn-apple.com/covid19-mobility-data/2023HotfixDev9/v3/en-us/applemobilitytrends-' + j + '.csv'
+        url = 'https://covid19-static.cdn-apple.com' + basePath + csvPath
         #print(url)
         data = chargecsv(url,zip = False,sep = ',')
         #print('data ok')
@@ -446,7 +453,7 @@ print('mobilité apple ok',jours[-1])
 
 ######################################################################
 # données de comportements
-
+# https://www.data.gouv.fr/fr/datasets/donnees-denquete-relatives-a-levolution-des-comportements-et-de-la-sante-mentale-pendant-lepidemie-de-covid-19-coviprev/
 # les regions
 f = open('regions.csv','r')
 s = f.read()
@@ -469,6 +476,7 @@ lregions = [(regions[r][0],regions[r][1:]) for r in regions] # numeros des regio
 regiondep = dict(lregions)
 
 # les comportements
+# https://www.data.gouv.fr/fr/datasets/r/425c285e-532e-46a5-bcaa-9ba6d191d8be
 ls = chargecsv('https://www.data.gouv.fr/fr/datasets/r/425c285e-532e-46a5-bcaa-9ba6d191d8be')
 
 # description des champs: https://www.data.gouv.fr/fr/datasets/r/226c2104-61cb-4bfb-8a38-a56d5386377e
@@ -525,7 +533,109 @@ datahygiene = {'nom': 'hygiene',
 print('hygiène sociale ok',jours[-1])
 
 ######################################################################
+# requetes google trends
+# pytrends
+# modif de request: https://stackoverflow.com/questions/57218531/modulenotfounderror-no-module-named-pandas-io-for-json-normalize réponse 4 sinon pytrends merde
+# doc: https://github.com/GeneralMills/pytrends
+
+import pandas as pd
+from pytrends.request import TrendReq
+import time
+
+departements = ['0'+str(x) for x in range(1,10)] + [str(x) for x in range(10,95) if x != 20]
+
+pytrends = TrendReq(hl='fr-FR', tz=60)
+# en cas de limite atteinte:
+# pytrends = TrendReq(hl='fr-FR', tz=60, timeout=(10,25), proxies=['https://34.203.233.13:80',], retries=2, backoff_factor=0.1, requests_args={'verify':False})
+
+#from google_trends_Covid import data_Covid
+#from google_trends_testcovid import data_testcovid
+#from google_trends_pharmacie import data_pharmacie
+#from google_trends_horaires import data_horaires
+
+def charge_trends(keywords):
+    delai = 0
+    key = keywords[0].replace(' ','')[:10]
+    if False: #key == 'horaires': # True si on veut les valeurs les plus récentes
+        data = {}
+        for d in departements:
+            print(d, end = ' ', flush = True)
+            ok = False
+            while not ok:
+                try:
+                    time.sleep(delai)
+                    pytrends.build_payload(
+                     kw_list=keywords,
+                     cat=0,
+                     timeframe='today 12-m',
+                     geo='FR-' + d,
+                     gprop='')
+                    t = pytrends.interest_over_time()
+                    ok = True
+                    s = t.to_csv()
+                    t = [x.split(',') for x in s.split('\n')][1:-1]
+                    t = [(x[0],sum([int(y) for y in x[1:-1]])) for x in t]
+                    data[d] = t
+                    print('ok', end = ' ', flush = True)
+                except:# si jamais on dépassé le nombre de requete google trends, genre 1400 en 4h
+                    delai = 60 #delai * 2
+                    print('nombre de requete google trends apparemment dépassé: delai = '
+                          + str(delai), flush = True)
+        f = open('google_trends_' + key + '.py','w')
+        f.write('data_' + key + ' = ' + str(data))
+        f.close()
+    else:
+        print('chargement du fichier google trends_' + key, flush = True)
+        globalsParameter = {}
+        localsParameter = {}
+        exec('from google_trends_' + key + ' import data_' + key,
+             globalsParameter, localsParameter)
+        data = localsParameter['data_' + key]
+        print('ok-----------', flush = True)
+    jours1 = [x[0] for x in data['01']]
+    jours = []
+    for j in jours1:
+        nj = num_de_jour(j)
+        for k in range(7):
+            jours.append(jour_de_num[nj+k]) # ameliorer la derniere periode, tronquer au present 
+    datav = np.zeros((len(departements),len(jours),1))
+    for (d,dep) in enumerate(departements):
+        for j in range(len(jours1)):
+            datav[d,7*j:7*j+7,0] = data[dep][j][1]
+    return((key,jours,datav))
+
+lkeys = [charge_trends(k)
+         for k in [['Covid','Covid 19', 'Coronavirus', 'SARS Cov 2'],
+                   ['test covid','test coronavirus','test PCR','test antigénique'],
+                   ['pharmacie','médecin', 'sos médecin'],
+                   ['horaires','horaire','itinéraire','trajet','voyage']
+         ]]
+
+jours = lkeys[0][1]
+
+datav = np.zeros((len(departements),len(jours),len(lkeys)))
+for (d,dep) in enumerate(departements):
+    for j in range(len(jours)):
+        datav[d,j,:len(lkeys)] = [data[d,j,0] for (k,lj,data) in lkeys]
+
+datacovidgoogle = {'nom': 'google',
+              'titre': 'requêtes google',
+              'dimensions': ['departements','jours','google'],
+              'departements': [int(d) for d in departements],
+              'jours': jours,
+              'google': ['recherche ' + k[0] + ' google' for k in lkeys],
+              'valeurs': datav}
+
+print('requetes google ok',jours[-1])
+
+######################################################################
+# eaux usées
+# https://www.data.gouv.fr/fr/datasets/stations-de-traitement-des-eaux-usees-france-entiere/
+
+######################################################################
+# https://covidnet.fr/
+######################################################################
 #
 
-contextes = [datamobilite, datameteo, datavacances, dataapple, datahygiene]
+contextes = [datamobilite, datameteo, datavacances, dataapple, datahygiene, datacovidgoogle]
 

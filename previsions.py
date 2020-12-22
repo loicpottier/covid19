@@ -1,18 +1,22 @@
 # a voir: https://github.com/CSSEGISandData/COVID-19
 from outils import *
 
-from charge_contextes import contextes, extrapole_manquantes, datamobilite, datameteo, datavacances, dataapple, datahygiene, regions
+from charge_contextes import contextes, extrapole_manquantes, datamobilite, datameteo, datavacances, dataapple, datahygiene, regions, datacovidgoogle, datahygiene
 
-from charge_indicateurs import indicateurs, dataurge, datahospiurge, datareatot, datahospitot, datadecestot, datahospi, datarea, datadeces, datahospiage, dataposage, datapos, population_dep
+from charge_indicateurs import indicateurs, dataurge, datahospiurge, datareatot, datahospitot, datadecestot, datahospi, datarea, datadeces, datahospiage, dataposage, datapos, population_dep, datatauxposage, datatauxpos, dataR, r0
 
 # fusion de contextes
 def fusion(data1,data2):
     nomsv1 = data1['dimensions'][-1]
     deps1 = data1['departements']
+    deps1dic = dict([(dep,d) for (d,dep) in enumerate(deps1)])
     jours1 = data1['jours']
+    jours1dic = dict([(jour,j) for (j,jour) in enumerate(jours1)])
     nomsv2 = data2['dimensions'][-1]
     deps2 = data2['departements']
+    deps2dic = dict([(dep,d) for (d,dep) in enumerate(deps2)])
     jours2 = data2['jours']
+    jours2dic = dict([(jour,j) for (j,jour) in enumerate(jours2)])
     deps = [d for d in deps1 if d in deps2]
     jours = [j for j in jours1 if j in jours2]
     noms = nomsv1 + '-' + nomsv2
@@ -27,42 +31,56 @@ def fusion(data1,data2):
     for d in range(len(deps)):
         for j in range(len(jours)):
             for k in range(len(data1[nomsv1])):
-                d1 = deps1.index(deps[d])
-                j1 = jours1.index(jours[j])
+                d1 = deps1dic[deps[d]]
+                j1 = jours1dic[jours[j]]
                 t[d,j,k] = data1['valeurs'][d1,j1,k]
             for k in range(len(data2[nomsv2])):
-                d2 = deps2.index(deps[d])
-                j2 = jours2.index(jours[j])
-                t[d,j,len(data1[nomsv1]) + k] = data2['valeurs'][d2,j2,k]            
+                d2 = deps2dic[deps[d]]
+                j2 = jours2dic[jours[j]]
+                t[d,j,len(data1[nomsv1]) + k] = data2['valeurs'][d2,j2,k]      
     data['valeurs'] = t
     return(data)
 
+# les contextes utilisés pour la prevision
 datacontexte = fusion(fusion(fusion(datamobilite,datameteo),datavacances),dataapple)
 datacontexte['contextes'] = datacontexte['mobilites-meteo-vacances-apple']
-#datacontexte = fusion(fusion(datamobilite,datameteo),datavacances)
-#datacontexte['contextes'] = datacontexte['mobilites-meteo-vacances']
-#datacontexte = fusion(datamobilite,datameteo)
-#datacontexte['contextes'] = datacontexte['mobilites-meteo']
-#datacontexte = datameteo
-#datacontexte['contextes'] = datacontexte['meteo']
+
+# les contextes utilisés pour les corrélations
+# mais on s'en sert pas pour prevoir, car le decalage est trop faible
+# (1 ou 6 jours pour les rea et les hospitalisations par age)
+
+datacontexte_corr = fusion(fusion(fusion(fusion(datamobilite,datameteo),datavacances),dataapple),datacovidgoogle)
+datacontexte_corr['contextes'] = datacontexte_corr['mobilites-meteo-vacances-apple-google']
+
+# beaucoup moins de jours: 160
+datacontexte_corr2 = fusion(fusion(fusion(fusion(fusion(datamobilite,datameteo),
+                                                datavacances),dataapple),datacovidgoogle),
+                           datahygiene)
+datacontexte_corr2['contextes'] = datacontexte_corr2['mobilites-meteo-vacances-apple-google-hygiene']
 
 # normalisation des valeurs des contextes: entre -100 et 100
 
-v = copy.deepcopy(datacontexte['valeurs'])
+def normalise_contexte(datacont):
+    v = copy.deepcopy(datacont['valeurs'])
+    for c in range(len(v[0,0])):
+        maxv = np.max(v[:,:,c])
+        minv = np.min(v[:,:,c])
+        v[:,:,c] = 200 * (v[:,:,c] - minv) / (maxv - minv) - 100
+    datacont['valeurs'] = v
 
-for c in range(len(v[0,0])):
-    maxv = np.max(v[:,:,c])
-    minv = np.min(v[:,:,c])
-    v[:,:,c] = 200 * (v[:,:,c] - minv) / (maxv - minv) - 100
-
-datacontexte['valeurs'] = v
+normalise_contexte(datacontexte)
+normalise_contexte(datacontexte_corr2)
+normalise_contexte(datacontexte_corr)
 
 ######################################################################
 # on ne garde que les departements communs aux donnees
 
 ldata = ([dataurge, datahospiurge, datareatot, datahospitot, datadecestot,
-          datahospi, datarea, datadeces, datapos, datacontexte]
+          datahospi, datarea, datadeces, datapos, datatauxpos, datacontexte, datacontexte_corr,
+          dataR] # dataR
          + [dataposage[age] for age in sorted([a for a in dataposage])
+            if age != '0']
+         + [datatauxposage[age] for age in sorted([a for a in datatauxposage])
             if age != '0'])
 
 deps = datahospi['departements'][:]
@@ -92,6 +110,7 @@ def groupedataregionscontexte(data):
     return(datareg)
 
 datacontexteregions = groupedataregionscontexte(datacontexte)
+datacontexteregions_corr = groupedataregionscontexte(datacontexte_corr)
 
 def groupedataregionsdonnees(data):
     regs = [x for x in regions]
@@ -259,34 +278,38 @@ def decale_jour(j,d):
 def inter(l1,l2):
     return([x for x in l1 if x in l2])
 
-def decale_data(tjours,tvaleurs,decalage): # décalage dans le passé
+def decale_data(datacont,tjours,tvaleurs,decalage): # décalage dans le passé
     jourst = [jour_de_num[j]
               for j in range(num_de_jour(tjours[0]),
                              num_de_jour(tjours[-1])+1)
-              if (j - decalage >= num_de_jour(datacontexte['jours'][0])
-                  and j - decalage <= num_de_jour(datacontexte['jours'][-1]))]
+              if (j - decalage >= num_de_jour(datacont['jours'][0])
+                  and j - decalage <= num_de_jour(datacont['jours'][-1]))]
     tj1 = tjours.index(jourst[0])
-    tv = tvaleurs[:,tj1:tj1 + len(jourst)]
+    tv = copy.deepcopy(tvaleurs[:,tj1:tj1 + len(jourst)])
     return(jourst,tv)
 
 def derivee_indic(t):
     return(np.array([derivee(d) for d in t]))
 
 def lissage_indic(t,d):
-    t1 = copy.deepcopy(t)
-    ndeps, nj = np.shape(t)
-    for dep in range(ndeps):
-        t1[dep,:] = lissage(t[dep,:], d)
-    return(t1)
+    return(np.array([lissage(d,7) for d in t]))
 
 # coef de correlation
-def correlation_dec(c,cjours,cvaleurs,ijours,ivaleurs,decalage):
+def correlation_dec(datacont,c,cjours,cvaleurs,ijours,ivaleurs,decalage, derive = True):
+    #print(c, datacont['contextes'][c])
     mcv = np.mean(cvaleurs[:,:,c]) # moyenne globale du contexte c
-    jourst,ind = decale_data(ijours,ivaleurs,decalage)
-    ind = derivee_indic(ind)
+    jourst,ind = decale_data(datacont,ijours,ivaleurs,decalage)
+    if derive:
+        ind = derivee_indic(ind)
+    else:
+        ind = copy.deepcopy(ind)
     # rapporter l'indicateur à la population du département
     for d in range(np.shape(ind)[0]):
-        ind[d,:] = ind[d,:] / population_dep[datacontexte['departements'][d]]
+        try:
+            ind[d,:] = ind[d,:] / population_dep[datacont['departements'][d]]
+        except:
+            print(d,np.shape(ind),datacont['departements'])
+            raise
     mind = np.mean(ind) # moyenne globale
     ind = ind - mind
     j1 = cjours.index(decale_jour(jourst[0],-decalage))
@@ -325,19 +348,19 @@ dico_lissage = {}
 
 ldataregions = [datahospiage[age] for age in sorted(datahospiage) if age != '0']
 
-def correlation(x,y,datacontexte,ldata):
-    decmin = 1
-    cx = datacontexte['mobilites-meteo-vacances-apple'].index(x)
+def correlation(x,y,datacont,ldata, derive=True):
+    decmin = 0
+    cx = datacont['contextes'].index(x)
     t = [t for t in ldata if t['nom'] == y][0]
-    try:
-        tv = dico_lissage[y]
-    except:
-        tv = lissage_indic(t['valeurs'],7)
-        dico_lissage[y] = tv
-    lc = [correlation_dec(cx,
-                          datacontexte['jours'],datacontexte['valeurs'],
+    if y not in dico_lissage:
+        dico_lissage[y] = lissage_indic(t['valeurs'],7)
+    tv = dico_lissage[y]
+    lc = [correlation_dec(datacont,
+                          cx,
+                          datacont['jours'],datacont['valeurs'],
                           t['jours'],tv,
-                          d)
+                          d,
+                          derive = derive)
           for d in range(decmin,decmax)]
     lcc = lissage([c for [c,jcont1,jcont2,jind1,jind2] in lc],7)
     if abs(max(lcc)) > abs(min(lcc)):
@@ -352,30 +375,39 @@ def correlation(x,y,datacontexte,ldata):
         #print(decmin,dmin,lc[:5],lcc[:5])
         return(([cmin,jcont1,jcont2,jind1,jind2],decmin + dmin))
 
+# avec l'hygiene
+y = 'urgences'
+for x in datahygiene['hygiene']:
+    print(x)
+    print(y)
+    print(correlation(x,y, datacontexte_corr2,ldata))
+
 #----------------------------------------------------------------------
 # le dico de toutes les corrélations
 # on vire les deces totaux et les positifs par age:
 # les correlations et decalages sont bizarres
 coefs = {}
 noms_indicateurs = ([t['nom'] for t in ldata #[dataurge] # ldata
-                     if t != datacontexte and not '9' in t['nom']])
+                     if (t != datacontexte_corr and t != datacontexte
+                         and not ('9' in t['nom']
+                                  and not 'taux pos' in t['nom']))])
 
-noms_contextes = datacontexte['mobilites-meteo-vacances-apple']
+noms_contextes = datacontexte_corr['contextes']
 
 for y in noms_indicateurs:
     coefs[y] = {}
+    print(y[:5], end = ' ', flush = True)
     for x in noms_contextes:
-        coefs[y][x] = correlation(x,y,datacontexte,ldata)
-        print(y,x[:15],coefs[y][x][1], ("%1.3f" % coefs[y][x][0][0]))
+        coefs[y][x] = correlation(x,y,datacontexte_corr,ldata, derive = (y != 'R'))
 
 noms_indicateurs_regions = [t['nom'] for t in ldataregions]
-noms_contextes_regions = datacontexteregions['mobilites-meteo-vacances-apple']
+noms_contextes_regions = datacontexteregions_corr['contextes']
 
 for y in noms_indicateurs_regions:
     coefs[y] = {}
+    print(y[:5], end = ' ', flush = True)
     for x in noms_contextes:
-        coefs[y][x] = correlation(x,y,datacontexteregions,ldataregions)
-        print(y,x[:15],coefs[y][x][1], ("%1.3f" % coefs[y][x][0][0]))
+        coefs[y][x] = correlation(x,y,datacontexteregions_corr,ldataregions)
 
 # utilisé par synthes_donnees.py
 
@@ -389,7 +421,7 @@ f.close()
 # visualisation des corrélations selon le decalage
 x = 'température'#'vacances'#'résidence' #'parcs' #'résidence'
 y = 'positifs' #'hospitalisations total' # 'positifs'
-cx = datacontexte['mobilites-meteo-vacances-apple'].index(x)
+cx = datacontexte_corr['contextes'].index(x)
 t = [t for t in ldata if t['nom'] == y][0]
 try:
     tv = dico_lissage[y]
@@ -397,8 +429,9 @@ except:
     tv = lissage_indic(t['valeurs'],7)
     dico_lissage[y] = tv
 
-lc = [correlation_dec(cx,
-                      datacontexte['jours'],datacontexte['valeurs'],
+lc = [correlation_dec(datacontexte_corr,
+                      cx,
+                      datacontexte_corr['jours'],datacontexte_corr['valeurs'],
                       t['jours'],tv,
                       d)[0]
       for d in range(1,50)]
@@ -415,16 +448,16 @@ coefs['positifs']['résidence']
 ######################################################################
 # prévision avec les décalages donné par les corrélations
 
-def fit2(datacontexte,indicateur,datavaleursderivee,datajours):
+def fit2(datacont,indicateur,datavaleursderivee,datajours):
     linfo = []
-    for (c,contexte) in enumerate(datacontexte['mobilites-meteo-vacances-apple']):
+    for (c,contexte) in enumerate(datacont['contextes']):
         [corr,jcont1,jcont2,jind1,jind2],decalage = coefs[indicateur][contexte]
-        jc1 = datacontexte['jours'].index(jcont1)
-        jc2 = datacontexte['jours'].index(jcont2)
+        jc1 = datacont['jours'].index(jcont1)
+        jc2 = datacont['jours'].index(jcont2)
         j1 = datajours.index(jind1)
         j2 = datajours.index(jind2)
         linfo.append((c,corr,jc1,jc2,j1,j2,decalage))
-    tv = datacontexte['valeurs']
+    tv = datacont['valeurs']
     ndeps,njours,ncont = np.shape(tv)
     j2min = min([j2 for (c,corr,jc1,jc2,j1,j2,decalage) in linfo])
     njmin = min([j2min - j1+1 for (c,corr,jc1,jc2,j1,j2,decalage) in linfo])
@@ -489,13 +522,16 @@ def lissage2(Bd,ldB, passe = 5):
     return(dict([(l[k][0],t[:,k]) for k in range(len(l))]))
 
 # prévision de la dérivée avec les décalages donnés par les corrélations
-def previsiondcorr(datacontexte,data, decale_limite = 30, depart = None, fin = None, passe = 5):
+def previsiondcorr(datacont,data, decale_limite = 30, depart = None, fin = None, passe = 5, derive = True):
     print('prevision', data['titre'])
-    A,Aj = datacontexte['valeurs'], datacontexte['jours']
+    A,Aj = datacont['valeurs'], datacont['jours']
     Bj = data['jours']
     #print('Bj', Bj[-5:])
     B = np.array([lissage(dep,7) for dep in data['valeurs']])
-    Bd = np.array([derivee(dep) for dep in B])
+    if derive:
+        Bd = np.array([derivee(dep) for dep in B])
+    else:
+        Bd = copy.deepcopy(B)
     if depart == None:
         depart = Bj[-1]
     n = num_de_jour(Bj[-1]) - num_de_jour(depart) + 1
@@ -504,7 +540,7 @@ def previsiondcorr(datacontexte,data, decale_limite = 30, depart = None, fin = N
         Aj = Aj[:-f-1]
         A = A[:,:-f-1,:]
     ndeps,njours,ncont = np.shape(A)
-    C,j2min,njmin,e,ed,vm,hm,linfo = fit2(datacontexte,data['nom'],Bd,Bj)
+    C,j2min,njmin0,e,ed,vm,hm,linfo = fit2(datacont,data['nom'],Bd,Bj)
     # j2min dernier jour calculé de B
     #print('j2min:', j2min,'njmin:',njmin)
     ldB = {} # prévision des derivees pour les derniers jours des contextes
@@ -513,14 +549,17 @@ def previsiondcorr(datacontexte,data, decale_limite = 30, depart = None, fin = N
                if abs(corr) > corrmax/2]
     decmin = min([d for (d,j2) in linfook])
     j2min = min([j2 for (c,corr,jc1,jc2,j1,j2,decalage) in linfo])
+    njmin1 = min([njours - (jc2 -(j2-j2min)+1)
+                  for (c,corr,jc1,jc2,j1,j2,decalage) in linfo])
+    njmin = njmin0 + njmin1
     print('decalage min=', decmin, 'n=', n, 'j2min=', j2min,'njmin=',njmin)
     L = np.zeros((ndeps,njmin,ncont))
     try:
         for d in range(ndeps):
             for (c,corr,jc1,jc2,j1,j2,decalage) in linfo:
                 #print(c,corr,jc1,jc2,j1,j2,decalage)
-                #print(njmin,jc2 -(j2-j2min)-(njmin-1),jc2 -(j2-j2min)+1,len(A[d,:,c]))
-                L[d,0:njmin,c] = A[d,jc2 -(j2-j2min)-(njmin-1):jc2 -(j2-j2min)+1,c]
+                L[d,0:njmin,c] = A[d,jc2 -(j2-j2min)-(njmin0-1):jc2 -(j2-j2min)+1 + njmin1,c]
+                #H[d,0:njmin] = datavaleursderivee[d,j2min-(njmin-1):j2min+1]
                 #print('ok')
         for jp in range(-n+1, decmin):
             #print(jp)
@@ -533,7 +572,7 @@ def previsiondcorr(datacontexte,data, decale_limite = 30, depart = None, fin = N
                 ldB[addday(nj,decmin-1)] = db
             #print(addday(nj,decmin-1))
     except:
-        print('************************** erreur ')
+        print('************************** erreur ', len(ldB))
         pass
     if len(ldB) > 0:
         # on lisse les dérivées
@@ -582,9 +621,9 @@ p = previsiondcorr(datacontexte,datahospi)
 #p = previsiondcorr(datacontexte, dataposage['29'])
 
 # prévision de la dérivée
-def previsiond1(datacontexte,data, decale_limite = 30, depart = None, fin = None, passe = 5):
+def previsiond1(datacont,data, decale_limite = 30, depart = None, fin = None, passe = 5):
     print('prevision', data['titre'])
-    A,Aj = datacontexte['valeurs'], datacontexte['jours']
+    A,Aj = datacont['valeurs'], datacont['jours']
     Bj = data['jours']
     B = np.array([lissage(dep,7) for dep in data['valeurs']])
     Bd = np.array([derivee(dep) for dep in B])
@@ -634,9 +673,9 @@ def previsiond1(datacontexte,data, decale_limite = 30, depart = None, fin = None
     }
     return(prev)
 
-def previsions_multiplesd(datacontexte,data,n):
+def previsions_multiplesd(datacont,data,n):
     #print('prevision', data['nom'])
-    A,Aj = datacontexte['valeurs'], datacontexte['jours']
+    A,Aj = datacont['valeurs'], datacont['jours']
     Bj = data['jours']
     B = np.array([lissage(dep,7) for dep in data['valeurs']])
     Bd = np.array([derivee(dep) for dep in B])
@@ -811,6 +850,44 @@ trace([(zipper(p['jours'], np.sum(p['valeurs'],axis = 1)),
       '_previsions_' + data['nom'])
 
 
+######################################################################
+# prévision de R a partir de celle des urgences
+p = P[0]
+
+'''
+l = (list(lissage(np.sum(dataurge['valeurs'], axis = 0),7))
+     + list(np.sum(p['valeurs'],axis = 1))[1:])
+plt.plot(l[-21:]);plt.show()
+plt.plot(r0(l)[-21:]);plt.show()
+'''
+
+lvurge = lissage(np.sum(dataurge['valeurs'], axis = 0),7)
+l = r0(lissage(list(lvurge) + list(np.sum(p['valeurs'],axis = 1))[1:],7))
+ph = previsiondcorr(datacontexte1,datahospiurge)
+lvhospiurge = lissage(np.sum(datahospiurge['valeurs'], axis = 0),7)
+lh = r0(lissage(list(lvhospiurge) + list(np.sum(ph['valeurs'],axis = 1))[1:],7))
+
+trace([(zipper(dataurge['jours'],
+               l[:len(dataurge['jours'])])[-100:],
+        '','--'),
+       (zipper(p['jours'],
+               l[-len(p['jours']):]),
+        'R urgences','='),
+       (zipper(datahospiurge['jours'],
+               lh[:len(datahospiurge['jours'])])[-100:],
+        '','--'),
+       (zipper(p['jours'],
+               lh[-len(p['jours']):]),
+        'R hospi urge','=')],
+      'prévision de R (taux de reproduction)\n',
+      'donnees/_prevision_R_par_mobilite')
+
+# les R de tous les départements, c'est rigolo
+plt.clf()
+plt.grid()
+plt.plot(np.transpose(np.array([lissage(dataR['valeurs'][d,-100:],7)
+                                for d in range(len(dataR['departements']))])))
+plt.show(False)
 
 ######################################################################
 # prevision cas positifs
@@ -848,6 +925,40 @@ trace([(zipper(p['jours'], np.sum(p['valeurs'],axis = 1)),
       "prévision des cas positifs par tranche d'âge",
       'donnees/_prevision_positifs_ages', xlabel = 2)
 '''
+######################################################################
+# prevision taux cas positifs
+pp = previsiond(datacontexte1, datatauxpos)
+
+trace([(zipper(p['jours'], np.mean(p['valeurs'],axis = 1)),
+        p['nom'],'=')
+       for p in [pp] if len(p['valeurs'] != 0)]
+      +
+      [(zipper(p['jours'], np.mean(p['valeursmax'],axis = 1)),
+        '','=')
+       for p in [pp] if len(p['valeurs'] != 0)]
+      +
+      [(zipper(p['jours'], np.mean(p['valeursmin'],axis = 1)),
+        '','=')
+       for p in [pp] if len(p['valeurs'] != 0)]
+      +
+      [(zipper(t['jours'],lissage(np.mean(t['valeurs'], axis = 0),7))[-60:],
+        '','--')
+       for t in [datatauxpos]],
+      'prévision des taux de cas positifs\n',
+      'donnees/_prevision_tauxpositifs')
+
+Page = [(age,previsiond(datacontexte1, datatauxposage[age]))
+        for age in sorted(datatauxposage) if age != '0']
+
+trace([(zipper(p['jours'], np.mean(p['valeurs'],axis = 1)),
+        '','=')
+       for (age,p) in Page if len(p['valeurs'] != 0)]
+      +
+      [(zipper(t['jours'],lissage(np.mean(t['valeurs'], axis = 0),7))[-50:],
+        age,'--')
+       for (age,t) in [(a,datatauxposage[a]) for a in sorted(list(datatauxposage)) if a != '0']],
+      "prévision des taux de cas positifs par tranche d'âge",
+      'donnees/_prevision_tauxpositifs_ages', xlabel = 2)
 ######################################################################
 # prevision des hospi par age (regions)
 Phospiage = [(age,previsiondcorr(datacontexteregions, datahospiage[age]))
@@ -970,26 +1081,4 @@ trace([(zipper(datacontexte1['jours'],
       'contextes les plus influents (pour toutes les données, lissés sur 7 jours)',
       'donnees/_contextes_influents', xlabel = 38)
 
-######################################################################
-# r0
 
-intervalle_seriel = 4.11 # = math.log(3.296)/0.29 
-
-def r0(l):
-    # l1: log de l
-    l1 = [math.log(x) if x>0 else 0 for x in l]
-    # dérivée de l1
-    dl1 = derivee(l1,largeur=7) 
-    # r0 instantané
-    lr0 = [min(4000,math.exp(c*intervalle_seriel)) for c in dl1]
-    return(lr0)
-
-trace([(zipper(dataurge['jours'],
-               r0(lissage(np.sum(dataurge['valeurs'],axis = 0),7)))[-100:],
-        'R urgences','--')]
-      +
-      [(zipper(dataurge['jours'],
-               r0(lissage(np.sum(datahospiurge['valeurs'],axis = 0),7)))[-100:],
-        'R hospitalisations urgences','--')],
-      'R (taux de reproduction)',
-      'donnees/_R')

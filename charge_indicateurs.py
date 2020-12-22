@@ -233,6 +233,7 @@ for x in csv:
             pass
 
 dataposage = {}
+datatauxposage = {}
 
 for age in ['0'] + [str(x)+'9' for x in range(9)]+['90']: # 0 c est le total des tous les ages
     td = dict([(x,[]) for x in departements])
@@ -256,10 +257,40 @@ for age in ['0'] + [str(x)+'9' for x in range(9)]+['90']: # 0 c est le total des
                        'jours': jours,
                        'departements': [int(d) for d in deps],
                        'valeurs': np.array([[mfloat(x[1]) for x in td[dep]] for dep in deps])}
+    datatauxposage[age] = {'nom': 'taux positifs'+ (' ' + age if age != '0' else ''),
+                           'titre': 'taux positifs '+ (age if age != '0' else ''),
+                           'dimensions': ['departements', 'jours'],
+                           'jours': jours,
+                           'departements': [int(d) for d in deps],
+                           'valeurs': np.array([[mfloat(x[1])/(0.00001 + mfloat(x[2]))
+                                                 for x in td[dep]] for dep in deps])}
 
 datapos = dataposage['0']
+datatauxpos = datatauxposage['0']
 
 print('positifs age ok', jours[-1])
+
+######################################################################
+# r0
+
+def r0(l):
+    intervalle_seriel = 4.11 # = math.log(3.296)/0.29 
+    # l1: log de l
+    l1 = [math.log(x) if x>0 else 0 for x in l]
+    # dérivée de l1
+    dl1 = derivee(l1,largeur=7) 
+    # r0 instantané
+    lr0 = [min(4000,math.exp(c*intervalle_seriel)) for c in dl1]
+    return(lr0)
+
+dataR = {'nom': 'R',
+         'titre': 'R: taux de reproduction',
+         'dimensions': ['departements', 'jours'],
+         'jours': dataurge['jours'],
+         'departements': dataurge['departements'],
+         'valeurs': np.array([r0(lissage(dataurge['valeurs'][dep],7))
+                              for dep in range(len(dataurge['departements']))])
+}
 
 ######################################################################
 #
@@ -269,4 +300,8 @@ indicateurs = [dataurge, datahospiurge,
                datahospi, datarea, datadeces,
                datahospiage, # par région
                dataposage,
-               datapos]
+               datapos,
+               datatauxposage,
+               datatauxpos,
+               dataR
+]
