@@ -1,6 +1,13 @@
 # covid19
 code des prévisions: https://cp.lpmib.fr/medias/covid19/_synthese.html
-le code est sale, un jour je le nettoierai et le passerai sous pandas.
+le code est dans les fichiers:
+
+- charge_contextes.py
+- charge_indicateurs.py
+- correlation.py
+- synthese2.py
+
+un jour je le passerai sous pandas.
 
 ainsi que
 
