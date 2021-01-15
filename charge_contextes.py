@@ -16,10 +16,16 @@ f.close()
 import zipfile
 with zipfile.ZipFile('Region_Mobility_Report_CSVs.zip', 'r') as zip_ref:
     zip_ref.extractall('mobilite_google')
-    
+
 f = open('mobilite_google/2020_FR_Region_Mobility_Report.csv','r')
 s = f.read()
 ls = [x.split(',') for x in s.split('\n')]
+if ';' in ls[0][0]: # des fois le séparateur change!!!!! fait chier google
+    ls = [x.split(';') for x in s.split('\n')]
+elif '\t' in ls[0][0]:
+    ls = [x.split('\t') for x in s.split('\n')]
+
+f.close()
 
 datalieux = []
 departements = []
@@ -143,16 +149,28 @@ def station_de_dep(d):
 # novembre:
 # https://donneespubliques.meteofrance.fr/donnees_libres/Txt/Synop/Archive/synop.202011.csv.gz
 data = []
-for mois in range(2,13):
-    print(mois,end = ' ', flush=True)
+for mois in range(1,36):
+    if mois <= 12:
+        annee = '2019'
+    elif mois <= 24:
+        annee = '2020'
+        mois = mois - 12
+    else:
+        annee = '2021'
+        mois = mois - 24
+    print(annee,mois,end = ' ', flush=True)
     smois = str(mois)
     if mois <10:
         smois = '0' + smois
-    d = chargecsv('https://donneespubliques.meteofrance.fr/donnees_libres/Txt/Synop/Archive/synop.2020'+ smois + '.csv.gz', zip = True)
-    if mois == 2:
-        data = d
-    else:
-        data = data + d[1:]
+    try:
+        d = chargecsv('https://donneespubliques.meteofrance.fr/donnees_libres/Txt/Synop/Archive/synop.'
+                      + annee + smois + '.csv.gz', zip = True)
+        if annee == '2019' and mois == 1:
+            data = d
+        else:
+            data = data + d[1:]
+    except:
+        pass
     #print(smois,'fait')
 
 param = data[0] # les bons des parametres meteo mesures
@@ -281,7 +299,7 @@ t1[:,:,:-1] = t
 for d in range(ndeps):
     dt = derivee(lissage(t1[d,:,ctemp],11))
     t1[d,:,ncont] = dt
-        
+
 datameteo['valeurs'] = t1
 
 print('météo ok',jours[-1])
@@ -295,16 +313,43 @@ zones = {
     "C":[77,93,94,75,78,91,92,95,11,30,34,48,66,9,12,31,32,46,65,81,82]}
 
 # périodes de vacances selon les zones
+# ne pas oublier de mettre a jour le debut et la fin dans le calcul de jours, plus bas
 vacances = {
-    "A": [('2020-02-22','2020-03-08'),('2020-03-17','2020-05-11'),('2020-05-12','2020-07-03'),('2020-07-04','2020-09-01'),('2020-10-17','2020-11-01'),('2020-11-16','2020-12-18'),('2020-12-19','2021-01-03')],
-    "B": [('2020-02-15','2020-03-01'),('2020-03-17','2020-05-11'),('2020-05-12','2020-07-03'),('2020-07-04','2020-09-01'),('2020-10-17','2020-11-01'),('2020-11-16','2020-12-18'),('2020-12-19','2021-01-03')],
-    "C": [('2020-02-08','2020-02-24'),('2020-03-17','2020-05-11'),('2020-05-12','2020-07-03'),('2020-07-04','2020-09-01'),('2020-10-17','2020-11-01'),('2020-11-16','2020-12-18'),('2020-12-19','2021-01-03')]
+    "A": [('2019-12-21','2020-01-05'),
+          ('2020-02-22','2020-03-08'),('2020-03-17','2020-05-11'),('2020-05-12','2020-07-03'),
+          ('2020-07-04','2020-09-01'),('2020-10-17','2020-11-01'),('2020-11-16','2020-12-18'),
+          ('2020-12-19','2021-01-03'),('2021-01-04','2021-01-19'),('2021-01-20','2021-02-05'),
+          ('2021-02-06','2021-02-21'),
+          ('2021-04-10','2021-04-25'),
+          ('2021-05-13','2021-05-16'),('2021-05-17','2021-07-05'),('2021-07-07','2021-09-01')],
+
+    "B": [('2019-12-21','2020-01-05'),
+          ('2020-02-15','2020-03-01'),('2020-03-17','2020-05-11'),('2020-05-12','2020-07-03'),
+          ('2020-07-04','2020-09-01'),('2020-10-17','2020-11-01'),('2020-11-16','2020-12-18'),
+          ('2020-12-19','2021-01-03'),('2021-01-04','2021-01-19'),('2021-01-20','2021-02-19'),
+          ('2021-02-20','2021-03-07'),
+          ('2021-04-24','2021-05-09'),
+          ('2021-05-13','2021-05-16'),('2021-05-17','2021-07-05'),('2021-07-07','2021-09-01')],
+
+    "C": [('2019-12-21','2020-01-05'),
+          ('2020-02-08','2020-02-24'),('2020-03-17','2020-05-11'),('2020-05-12','2020-07-03'),
+          ('2020-07-04','2020-09-01'),('2020-10-17','2020-11-01'),('2020-11-16','2020-12-18'),
+          ('2020-12-19','2021-01-03'),('2021-01-04','2021-01-19'),('2021-01-20','2021-02-12'),
+          ('2021-02-13','2021-02-28'),
+          ('2021-04-17','2021-05-02'),
+          ('2021-05-13','2021-05-16'),('2021-05-17','2021-07-05'),('2021-07-07','2021-09-01')]
 }
-vvacances = [100,100,80,100,100,50,100]
+vvacances = [100,
+             100,100,80,
+             100,100,50,
+             100,50,50, # pas de déconfinement le 20 janvier
+             100, # apres fevrier plein effectif a l ecole
+             100,
+             100,0,100]
 
 jours = [jour_de_num[k]
-         for k in range(num_de_jour('2020-02-08'),
-                        num_de_jour('2021-01-03')+1)]
+         for k in range(num_de_jour('2019-12-21'), # mettre a jour 
+                        num_de_jour('2021-09-01')+1)] # mettre a jour
 
 def joursvacances(d):
     z = [z for z in zones if d in zones[z]][0]
@@ -454,26 +499,7 @@ print('mobilité apple ok',jours[-1])
 ######################################################################
 # données de comportements
 # https://www.data.gouv.fr/fr/datasets/donnees-denquete-relatives-a-levolution-des-comportements-et-de-la-sante-mentale-pendant-lepidemie-de-covid-19-coviprev/
-# les regions
-f = open('regions.csv','r')
-s = f.read()
-f.close()
 
-ls = [x.split('\t') for x in s.split('\n')]
-regions = {}
-depregion = {}
-for x in ls:
-    r = x[3] #nom de region
-    if r not in regions and r != 'Corse':
-        regions[r] = [int(x[2])] # numero de region
-    try:
-        regions[r].append(int(x[0])) # le departement
-        depregion[int(x[0])] = int(x[2]) # numero de region
-    except:
-        pass # la corse...
-
-lregions = [(regions[r][0],regions[r][1:]) for r in regions] # numeros des regions et departements
-regiondep = dict(lregions)
 
 # les comportements
 # https://www.data.gouv.fr/fr/datasets/r/425c285e-532e-46a5-bcaa-9ba6d191d8be
@@ -548,83 +574,103 @@ pytrends = TrendReq(hl='fr-FR', tz=60)
 # en cas de limite atteinte:
 # pytrends = TrendReq(hl='fr-FR', tz=60, timeout=(10,25), proxies=['https://34.203.233.13:80',], retries=2, backoff_factor=0.1, requests_args={'verify':False})
 
-#from google_trends_Covid import data_Covid
-#from google_trends_testcovid import data_testcovid
-#from google_trends_pharmacie import data_pharmacie
-#from google_trends_horaires import data_horaires
+def charge_trends_dep(d,key,keywords,data,delai0):
+    delai = delai0
+    ok = False
+    while not ok:
+        try:
+            time.sleep(delai)
+            pytrends.build_payload(
+             kw_list=keywords,
+             cat=0,
+             timeframe='today 12-m',
+             geo='FR-' + d,
+             gprop='')
+            t = pytrends.interest_over_time()
+            ok = True
+            s = t.to_csv()
+            f = open('_trends.csv','w')
+            f.write(s)
+            f.close()
+            t = [x.split(',') for x in s.split('\n')][1:-1]
+            t = [(x[0],sum([int(y) for y in x[1:-1]])) for x in t]
+            data[d] = t
+            print('ok', end = ' ', flush = True)
+        except:# si jamais on dépassé le nombre de requete google trends, genre 1400 en 4h
+            delai = 60
+            print('nombre de requete google trends apparemment dépassé: delai = '
+                  + str(delai), flush = True)
+    return(delai)
 
 def charge_trends(keywords):
     delai = 0
     key = keywords[0].replace(' ','')[:10]
-    if False: #key == 'horaires': # True si on veut les valeurs les plus récentes
+    # enlever False pour mettre a jour
+    if False: #key in ['horaires','voyage','itinéraire']: # True si on veut les valeurs les plus récentes
         data = {}
         for d in departements:
             print(d, end = ' ', flush = True)
-            ok = False
-            while not ok:
-                try:
-                    time.sleep(delai)
-                    pytrends.build_payload(
-                     kw_list=keywords,
-                     cat=0,
-                     timeframe='today 12-m',
-                     geo='FR-' + d,
-                     gprop='')
-                    t = pytrends.interest_over_time()
-                    ok = True
-                    s = t.to_csv()
-                    t = [x.split(',') for x in s.split('\n')][1:-1]
-                    t = [(x[0],sum([int(y) for y in x[1:-1]])) for x in t]
-                    data[d] = t
-                    print('ok', end = ' ', flush = True)
-                except:# si jamais on dépassé le nombre de requete google trends, genre 1400 en 4h
-                    delai = 60 #delai * 2
-                    print('nombre de requete google trends apparemment dépassé: delai = '
-                          + str(delai), flush = True)
+            delai = charge_trends_dep(d,key,keywords,data,delai)
         f = open('google_trends_' + key + '.py','w')
         f.write('data_' + key + ' = ' + str(data))
         f.close()
+        print('fichier enregistré')
+        
     else:
         print('chargement du fichier google trends_' + key, flush = True)
-        globalsParameter = {}
         localsParameter = {}
         exec('from google_trends_' + key + ' import data_' + key,
-             globalsParameter, localsParameter)
+             {}, localsParameter)
         data = localsParameter['data_' + key]
         print('ok-----------', flush = True)
     jours1 = [x[0] for x in data['01']]
     jours = []
+    nj0 = num_de_jour(aujourdhui)
     for j in jours1:
         nj = num_de_jour(j)
         for k in range(7):
-            jours.append(jour_de_num[nj+k]) # ameliorer la derniere periode, tronquer au present 
+            if nj+k <= nj0:
+                jours.append(jour_de_num[nj+k])
+    # ameliorer la derniere periode, tronquer au present 
     datav = np.zeros((len(departements),len(jours),1))
     for (d,dep) in enumerate(departements):
         for j in range(len(jours1)):
-            datav[d,7*j:7*j+7,0] = data[dep][j][1]
+            datav[d,7*j:min(len(jours),7*j+7),0] = data[dep][j][1]
     return((key,jours,datav))
 
 lkeys = [charge_trends(k)
          for k in [['Covid','Covid 19', 'Coronavirus', 'SARS Cov 2'],
                    ['test covid','test coronavirus','test PCR','test antigénique'],
                    ['pharmacie','médecin', 'sos médecin'],
-                   ['horaires','horaire','itinéraire','trajet','voyage']
+                   ['horaires','horaire'],
+                   ['voyage'],
+                   ['itinéraire'],#https://trends.google.com/trends/explore?geo=FR&q=itin%C3%A9raire
          ]]
 
-jours = lkeys[0][1]
+jours = sorted([lj for (k,lj,data) in lkeys], key = lambda x: num_de_jour(x[-1]))[-1]
+#lkeys[0][1]
 
 datav = np.zeros((len(departements),len(jours),len(lkeys)))
 for (d,dep) in enumerate(departements):
     for j in range(len(jours)):
-        datav[d,j,:len(lkeys)] = [data[d,j,0] for (k,lj,data) in lkeys]
+        datav[d,j,:len(lkeys)] = [data[d,min(j,len(lj)-1),0] for (k,lj,data) in lkeys]
 
-datacovidgoogle = {'nom': 'google',
+datagoogletrends = {'nom': 'googletrends',
               'titre': 'requêtes google',
-              'dimensions': ['departements','jours','google'],
+              'dimensions': ['departements','jours','googletrends'],
               'departements': [int(d) for d in departements],
               'jours': jours,
-              'google': ['recherche ' + k[0] + ' google' for k in lkeys],
+              'googletrends': ['recherche ' + k[0] + ' google' for k in lkeys],
               'valeurs': datav}
+
+datagoogletrends_prev = {'nom': 'googletrends',
+                        'titre': 'requêtes google',
+                        'dimensions': ['departements','jours','googletrends'],
+                        'departements': [int(d) for d in departements],
+                        'jours': jours,
+                        'googletrends': ['recherche ' + k[0] + ' google'
+                                         for k in lkeys[3:]],
+                        'valeurs': datav[:,:,3:]}
 
 print('requetes google ok',jours[-1])
 
@@ -634,8 +680,84 @@ print('requetes google ok',jours[-1])
 
 ######################################################################
 # https://covidnet.fr/
+
+######################################################################
+# pauvreté par départements
+# https://www.insee.fr/fr/statistiques/fichier/4507225/base-filosofi-2017_CSV.zip
+f = open('pauvrete/cc_filosofi_2017_DEP.CSV','r')
+s = f.read()
+ls = [x.split(';') for x in s.split('\n')]
+f.close()
+
+lchamps_pauvrete = [('TP6017','Taux de pauvreté'),
+                    ('MED17','Niveau de vie médian'),
+                    ('D117','1er décile du niveau de vie'),
+                    ('D917','9e décile du niveau de vie'),
+                    ('RD17','9e décile/1er décile'),
+                    ('TP60AGE117','Taux de pauvreté<30 ans'),
+                    ('TP60AGE217','Taux de pauvreté 30-39 ans'),
+                    ('TP60AGE317','Taux de pauvreté 40-49 ans'),
+                    ('TP60AGE417','Taux de pauvreté 50-59 ans'),
+                    ('TP60AGE517','Taux de pauvreté 60-74 ans'),
+                    ('TP60AGE617','Taux de pauvreté >75 ans'),
+                    ('NBMENFISC17','Nombre de ménages fiscaux'),
+                    ('NBPERSMENFISC17','Nombre de personnes dans les ménages fiscaux'),
+                    ]
+
+valdep = [[int(x[ls[0].index('CODGEO')])]
+          + [x[ls[0].index(c)] for (c,t) in lchamps_pauvrete]
+          for x in ls[1:-1] if x[ls[0].index('CODGEO')][1] not in ['A','B']]
+
+deps = [v[0] for v in valdep]
+jours = [jour_de_num[k] for k in range(num_de_jour('2019-01-01'),num_de_jour('2022-01-01'))]
+datav = np.zeros((len(deps),len(jours),len(lchamps_pauvrete) - 2))
+for (d,v) in enumerate(valdep):
+    datav[d,:,:] = ([float(v[1]), float(v[2])/(float(v[13])/float(v[12]))]
+                    + [float(x) for x in v[3:12]])
+
+datapauvrete = {'nom': 'taux de pauvreté',
+                'titre': 'taux de pauvreté',
+                'dimensions': ['departements','jours','pauvreté'],
+                'departements': deps,
+                'jours': jours,
+                'pauvreté': [v[1] for v in lchamps_pauvrete[:-2]],
+                'valeurs': datav}
+
+print('taux de pauvreté chargé')
+
+######################################################################
+# population
+print('on charge la population', flush = True)
+deps = [d for d in population_dep]
+datav = np.zeros((len(deps),len(jours),1))
+for (d,v) in enumerate(population_dep):
+    datav[d,:,0] = v
+
+datapop = {'nom': 'population',
+           'titre': 'population',
+           'dimensions': ['departements','jours','population'],
+           'departements': [d for d in population_dep],
+           'jours': jours,
+           'population': ['population'],
+           'valeurs': datav}
+
+print('population chargée')
+
+######################################################################
+# vaccination
+# https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-personnes-vaccinees-contre-la-covid-19/
+######################################################################
+# égoûts
+# https://www.data.gouv.fr/fr/datasets/reseau-de-collecte-des-eaux-usees/
+
 ######################################################################
 #
+contextes = [datamobilite, datameteo, datavacances, dataapple, datahygiene,
+             datagoogletrends, datagoogletrends_prev,
+             regions, datapauvrete,lchamps_pauvrete[:-2],datapop]
 
-contextes = [datamobilite, datameteo, datavacances, dataapple, datahygiene, datacovidgoogle]
+import pickle
+f = open('contextes.pickle','wb')
+pickle.dump(contextes,f)
+f.close()
 

@@ -5,7 +5,7 @@ def get(data,x,champ):
         return(x[data[0].index(champ)])
     except:
         return(x[data[0].index('"' + champ + '"')].replace('"',''))
-        
+      
 
 departements = ['0' + str(x) for x in range(1,10)] + [str(x) for x in range(10,96) if x != 20]
 
@@ -46,7 +46,8 @@ for x in csv:
         lv = [get(csv,x,c)
               for c in ['date_de_passage',
                         'nbre_pass_corona',
-                        'nbre_hospit_corona']]
+                        'nbre_hospit_corona',
+                        'nbre_acte_corona']]
         td[dep].append(lv)
 
 maxjours = max([len(td[x]) for x in td])
@@ -67,8 +68,14 @@ datahospiurge = {'nom': 'hospitalisation urgences',
                  'jours': jours,
                  'departements': [int(d) for d in deps],
                  'valeurs': np.array([[mfloat(x[2]) for x in td[dep]] for dep in deps])}
+datasosmedecin = {'nom': 'sosmedecin',
+                  'titre': 'sosmedecin quotidien',
+                  'dimensions': ['departements', 'jours'],
+                  'jours': jours,
+                  'departements': [int(d) for d in deps],
+                  'valeurs': np.array([[mfloat(x[3]) for x in td[dep]] for dep in deps])}
 
-print('urge et hospiurge ok', jours[-1])
+print('urge, hospiurge, sosmedecin ok', jours[-1])
 ######################################################################
 # hospitalieres
 '''
@@ -101,20 +108,20 @@ td = dict([(x,td[x]) for x in td
 jours = [x[0] for x in td[list(td)[0]]] 
 deps = sorted([x for x in td])
 
-datareatot = {'nom': 'réanimation total',
-            'titre': 'total réanimation',
+datareatot = {'nom': 'réanimations',
+            'titre': 'réanimation',
             'dimensions': ['departements', 'jours'],
             'jours': jours,
             'departements': [int(d) for d in deps],
             'valeurs': np.array([[mfloat(x[2]) for x in td[dep]] for dep in deps])}
-datahospitot = {'nom': 'hospitalisations total',
-            'titre': 'total hospitalisations',
+datahospitot = {'nom': 'hospitalisations',
+            'titre': 'hospitalisations',
             'dimensions': ['departements', 'jours'],
             'jours': jours,
             'departements': [int(d) for d in deps],
             'valeurs': np.array([[mfloat(x[1]) for x in td[dep]] for dep in deps])}
-datadecestot = {'nom': 'décès total',
-            'titre': 'total décès',
+datadecestot = {'nom': 'décès',
+            'titre': 'décès',
             'dimensions': ['departements', 'jours'],
             'jours': jours,
             'departements': [int(d) for d in deps],
@@ -153,20 +160,20 @@ td = dict([(x,td[x]) for x in td
 jours = [x[0] for x in td[list(td)[0]]] 
 deps = sorted([x for x in td])
 
-datahospi = {'nom': 'hospitalisations',
-             'titre': 'hospitalisations',
+datahospi = {'nom': 'nouv hospitalisations',
+             'titre': 'nouvelles hospitalisations',
              'dimensions': ['departements', 'jours'],
              'jours': jours,
              'departements': [int(d) for d in deps],
              'valeurs': np.array([[mfloat(x[1]) for x in td[dep]] for dep in deps])}
-datarea = {'nom': 'réanimations',
-             'titre': 'réanimations',
+datarea = {'nom': 'nouv réanimations',
+             'titre': 'nouvelles réanimations',
              'dimensions': ['departements', 'jours'],
              'jours': jours,
              'departements': [int(d) for d in deps],
              'valeurs': np.array([[mfloat(x[2]) for x in td[dep]] for dep in deps])}
-datadeces = {'nom': 'décès',
-             'titre': 'décès',
+datadeces = {'nom': 'nouv décès',
+             'titre': 'nouveaux décès',
              'dimensions': ['departements', 'jours'],
              'jours': jours,
              'departements': [int(d) for d in deps],
@@ -174,7 +181,7 @@ datadeces = {'nom': 'décès',
 
 print('hospi ok', jours[-1])
 ######################################################################
-# hospitalieres classes d ages
+# hospitalisation classes d'ages, par régions
 '''
 reg	integer	Region								
 cl_age90	integer	Classe age 								
@@ -191,8 +198,11 @@ csv = chargecsv('https://www.data.gouv.fr/fr/datasets/r/08c18e08-6780-452d-9b8c-
 datahospiage = {}
 regions = ['11','24','27','28','32','44','52','53','75','76','84','93']
 
+deps = sorted([x for x in depregion])
+depsind = dict([(dep,k) for (k,dep) in enumerate(deps)])
+
 for age in ['0'] + [str(x)+'9' for x in range(9)]+['90']: # 0 c est le total des tous les ages
-    td = dict([(x,[]) for x in regions])
+    tr = dict([(x,[]) for x in regions])
     for x in csv:
         reg = get(csv,x,'reg')
         if reg in regions and get(csv,x,'cl_age90') == age:
@@ -201,36 +211,38 @@ for age in ['0'] + [str(x)+'9' for x in range(9)]+['90']: # 0 c est le total des
                             'hosp',
                             'rea',
                             'dc']]
-            td[reg].append(lv)
-    maxjours = max([len(td[x]) for x in td])
-    td = dict([(x,td[x]) for x in td
-               if len(td[x]) == maxjours and len([y for y in td[x] if '' in y]) == 0])
-    jours = [x[0] for x in td[list(td)[0]]] 
-    regs = sorted([x for x in td])
+            tr[reg].append(lv)
+    maxjours = max([len(tr[x]) for x in tr])
+    tr = dict([(x,tr[x]) for x in tr
+               if len(tr[x]) == maxjours and len([y for y in tr[x] if '' in y]) == 0])
+    jours = [x[0] for x in tr[list(tr)[0]]] 
+    regs = sorted([x for x in tr])
+    t = np.zeros((len(deps),len(jours)))
+    for reg in regs:
+        v = [mfloat(x[1]) for x in tr[reg]]
+        popreg = sum([population_dep[dep] for dep in regiondep[int(reg)]])
+        for dep in regiondep[int(reg)]:
+            t[depsind[dep],:] = np.array(v[:]) * population_dep[dep] / popreg
     datahospiage[age] = {'nom': 'hospi '+ age,
                          'titre': 'hospitalisations '+ age,
-                         'dimensions': ['regions', 'jours'],
+                         'dimensions': ['departements', 'jours'],
                          'jours': jours,
-                         'regions': regs,
-                         'valeurs': np.array([[mfloat(x[1]) for x in td[reg]] for reg in regs])}
+                         'departements': deps,
+                         'valeurs': t}
 
 print('hospiage ok', jours[-1])
 
 ######################################################################
 # tests
-# ['dep', 'jour', 'P', 'T', 'cl_age90', 'pop']
-
+# https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19/
+# ils font chier, ca n'arrête pas de changer, la structure de ce csv...
+# ['dep', 'jour', 'P', 'T', 'cl_age90']
+# https://www.data.gouv.fr/fr/datasets/r/406c6a23-e283-4300-9484-54e78c8ae675
 csv = chargecsv('https://www.data.gouv.fr/fr/datasets/r/406c6a23-e283-4300-9484-54e78c8ae675',
                 zip = False,
                 sep = ';')
 
-population_dep = {}
-for x in csv:
-    if len(x) >= 5 and x[4] == '0':
-        try:
-            population_dep[int(x[0])] = int(x[5])
-        except:
-            pass
+# a disparu
 
 dataposage = {}
 datatauxposage = {}
@@ -273,29 +285,80 @@ print('positifs age ok', jours[-1])
 ######################################################################
 # r0
 
-def r0(l):
-    intervalle_seriel = 4.11 # = math.log(3.296)/0.29 
-    # l1: log de l
-    l1 = [math.log(x) if x>0 else 0 for x in l]
-    # dérivée de l1
-    dl1 = derivee(l1,largeur=7) 
-    # r0 instantané
-    lr0 = [min(4000,math.exp(c*intervalle_seriel)) for c in dl1]
-    return(lr0)
-
 dataR = {'nom': 'R',
          'titre': 'R: taux de reproduction',
          'dimensions': ['departements', 'jours'],
          'jours': dataurge['jours'],
          'departements': dataurge['departements'],
-         'valeurs': np.array([r0(lissage(dataurge['valeurs'][dep],7))
+         'valeurs': np.array([lissage(r0(lissage(lissage(dataurge['valeurs'][dep],7),7),derive=14),7)
                               for dep in range(len(dataurge['departements']))])
 }
+#plt.plot(np.transpose(dataR['valeurs']));plt.show()
+
+######################################################################
+# exces de deces durant les semaines 11 à 14 de 2020: 9 mars au 5 avril
+# https://www.data.gouv.fr/fr/datasets/niveaux-dexces-de-mortalite-standardise-durant-lepidemie-de-covid-19/
+# https://www.data.gouv.fr/fr/datasets/r/055ebba4-89dc-4996-962e-71dde6aaf7a6
+'''
+Le Z-score est calculé par la formule : (nombre observé – nombre attendu)/ écart-type du nombre attendu.
+
+Les cinq catégories d'excès sont définies de la façon suivante :
+
+    Pas d’excès : indicateur standardisé de décès (Z-score) <2
+    Excès modéré de décès : indicateur standardisé de décès (Z-score) compris entre 2 et 4,99
+    Excès élevé de décès : indicateur standardisé de décès (Z-score) compris entre 5 et 6,99 :
+    Excès très élevé de décès : indicateur standardisé de décès (Z-score) compris entre 7 et 11,99 : Excès exceptionnel de décès indicateur standardisé de décès (Z-score) supérieur à 12
+'''
+Z = {1:1, 2:3.5, 3:6, 4:9.5, 5: 15}
+
+deps = dataurge['departements']
+csv = chargecsv('https://www.data.gouv.fr/fr/datasets/r/055ebba4-89dc-4996-962e-71dde6aaf7a6')
+sdeps = [str(y) if y > 9 else '0' + str(y) for y in deps]
+vdeps = {}
+for x in csv:
+    d = x[0].replace('"','')
+    if str(d) in sdeps:
+        d = int(d)
+        if x[2] == '"0"':
+            v = Z[int(x[3].replace('"',''))]
+            if d in vdeps:
+                vdeps[d] += v
+            else:
+                vdeps[d] = v
+
+
+jours = dataurge['jours']
+data = np.zeros((len(deps),len(jours)))
+for(d,dep) in enumerate(deps):
+    data[d,:] = vdeps[dep]
+
+dataexcesdeces = {'nom': 'excesdeces',
+                  'titre': 'excès des décès',
+                  'dimensions': ['departements', 'jours'],
+                  'jours': jours,
+                  'departements': deps,
+                  'valeurs': data}
+
+# décès dûs au covid au 17 mai 2020
+# https://www.data.gouv.fr/fr/datasets/donnees-de-certification-electronique-des-deces-associes-au-covid-19-cepidc/
+csv2 = chargecsv('https://www.data.gouv.fr/fr/datasets/r/d0420516-e193-4c57-a68f-5b082345b439')
+val = dict([(int(x[0]),x[2]) for x in csv2
+            if x[0] in sdeps and x[1] == '0' and x[3] == '2020-05-17'])
+data = np.zeros((len(deps),len(jours)))
+for(d,dep) in enumerate(deps):
+    data[d,:] = val[dep]
+
+    datadeces17mai = {'nom': 'deces17mai',
+                      'titre': 'décès au 17 mai 2020',
+                      'dimensions': ['departements', 'jours'],
+                      'jours': jours,
+                      'departements': deps,
+                      'valeurs': data}
 
 ######################################################################
 #
 
-indicateurs = [dataurge, datahospiurge,
+indicateurs = [dataurge, datahospiurge, datasosmedecin, 
                datareatot, datahospitot, datadecestot,
                datahospi, datarea, datadeces,
                datahospiage, # par région
@@ -303,5 +366,12 @@ indicateurs = [dataurge, datahospiurge,
                datapos,
                datatauxposage,
                datatauxpos,
-               dataR
+               dataR,
+               dataexcesdeces,
+               datadeces17mai
 ]
+
+import pickle
+f = open('indicateurs.pickle','wb')
+pickle.dump(indicateurs,f)
+f.close()
