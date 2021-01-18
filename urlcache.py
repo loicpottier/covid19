@@ -1,19 +1,23 @@
 import urllib.request
 import gzip
+import pickle
+dircache = '/home/loic/Dropbox/covid19/previsions/cache/'
+
 try:
-    from cache.cache import cache # dictionnaire des contenus des urls
+    # dictionnaire des contenus des urls
+    f = open(dircache + 'cache.pickle','rb')
+    cache = pickle.load(f)
+    f.close()
 except:
     cache = {}
-
-dircache = '/home/loic/Dropbox/covid19/previsions/cache/'
 
 compteur = 0
 
 def efface_cache():
     global cache
     cache = {}
-    f = open(dircache + 'cache.py','w')
-    f.write('cache = {}')
+    f = open(dircache + 'cache.pickle','wb')
+    pickle.dump(cache,f)
     f.close()
 
 def sauve_cache():
@@ -22,13 +26,13 @@ def sauve_cache():
                         SAUVEGARDE DU CACHE
 **********************************************************************
 """)          
-    f = open(dircache + 'cache.py','w')
-    f.write('cache = ' + str(cache))
+    f = open(dircache + 'cache.pickle','wb')
+    pickle.dump(cache,f)
     f.close()
 
-def urltexte(url, zip = False):
+def urltexte(url, zip = False, use_cache = True):
     global compteur
-    if url in cache:
+    if url in cache and use_cache:
         #print('déjà dans le cache')
         return(cache[url])
     else:

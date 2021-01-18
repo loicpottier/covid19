@@ -91,18 +91,21 @@ f.write('<div class="container-fluid">'
         + '<p>' + time.asctime(now) + '</p>'
         + '<p>loic.pottier@gmail.com'
         + '<a href="https://twitter.com/LocPottier1"><img src="https://help.twitter.com/content/dam/help-twitter/brand/logo.png" width = 50></a></p>'
-        + '<a href="https://github.com/loicpottier/covid19">Code</a>')
+        + '<p><a href="https://github.com/loicpottier/covid19">Code</a><br>')
 
-f.write("<h2>Pas à jour! (méthode et code refondus complètement hier)</h2>")
-f.write("<h3>Prévisions des indicateurs principaux de l'épidémie</h3>")
-
-f.write("<h4>Prévisions jour par jour depuis 3 mois</h4>")
+f.write("<i>(Méthode et code refondus complètement le 14 janvier)</i></p>")
+f.write("<h3>Données et prévisions des indicateurs principaux de l'épidémie</h3>")
+f.write("<p>On suppose qu'après les vacances de février, les collèges et lycées fonctionnent encore en demi-effectif.</p>"
+        +"<p>La méthode employée est fondée sur les corrélations maximales entre données dont on déduit les décalages temporels, et, à partir de ces décalages, sur la prévision linéaire par optimisation quadratique.<br>"
+        + "Tout cela département par département. Les données méteo à venir sont déduites de l'année passée. On n'utilise aucune modélisation. Détails à venir.</p>")
+f.write("<h4>Données et prévisions jour par jour depuis 3 mois</h4>"
+        + "<p>Courbe bleue: données réelles. Courbe orange: données prévues à partir du jour \(j\) en utilisant uniquement les données des jours précédant \( j\).</p>" )
 
 f.write('<table class="table">')
 videos(f,['previsions_urgences.mp4',
           'previsions_réanimations.mp4',
-          #'previsions_R.mp4'
           'previsions_hospitalisations.mp4'])
+videos(f,['previsions_taux positifs.mp4','previsions_positifs.mp4','previsions_sosmedecin.mp4'])
 f.write('</table>')
 
 f.write("<h4>Prévisions aujourd'hui</h4>")
@@ -168,7 +171,9 @@ f.write('</table>')
 
 f.write("<h4>Dans les Alpes-Maritimes</h4>")
 f.write('<table class="table">')
-images2(f,'_prevision_urgences_réanimations6.png','_prevision_R_par_urgences_hospi 06.png')
+images(f,['_prevision_urgences_réanimations_sosmedecin6.png',
+          '_prevision_taux positifs6.png',
+          '_prevision_R_par_urgences_hospi 06.png'])
 f.write('</table>')
 
 f.write(fin1)

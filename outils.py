@@ -8,7 +8,10 @@ import math
 import numpy as np
 import sys
 import copy
+import random
 from urlcache import *
+
+DIRSYNTHESE = 'synthese/'
 
 def mfloat(x):
     try:
@@ -20,7 +23,12 @@ def mfloat(x):
 # Obtenir l'heure et la date locale
 now = time.localtime(time.time())
 print(time.asctime(now)) # Afficher la date en format lisible
-
+aujourdhui = (str(now.tm_year) + '-'
+              + (str(now.tm_mon) if now.tm_mon > 9
+                 else '0' + str(now.tm_mon))
+              + '-'
+              + (str(now.tm_mday) if now.tm_mday > 9
+                 else '0' + str(now.tm_mday)))
 def mmax(l):
     if l == []:
         return(1000000000000000000000000000000)
@@ -63,16 +71,19 @@ def lissagecum(L,d): # uniquement d impair
     l = np.concatenate((ldeb[::-1],l,lfin))
     return(l)
 
-# lissage sur d
-def lissage(l,d,degre=0):
-    dd = d//2
+import scipy.signal
+
+# lissage sur d # d impair
+def lissage(l,d):
+    l = np.array(l)
+    d2 = d//2
     # on complete comme si c'etait de periode d et lineairement
-    l0 = list(l) + [0]*d
-    l0[-d:] = [x + l[-1] - l[-1-d] for x in l[-d:]]
-    l1 = []
-    for i in range(len(l)):
-        ld = l0[max(0,i-dd):i+dd+1]
-        l1.append(moyennen(ld,degre))
+    l0 = np.concatenate([np.zeros(d2),l, np.zeros(d2)])
+    l0[-d2:] = l[-d2:] + l[-1] - l[-1-d2]
+    l0[:d2] = l[:d2] + l[0] - l[d2]
+    #print(l0)
+    #l1 = np.convolve(l0,np.ones(d)/d,mode='valid')
+    l1 = scipy.signal.convolve(l0,np.ones(d)/d,mode='valid')
     return(l1)
 
 # on prend le voisinage
@@ -82,6 +93,12 @@ def derivee(l, largeur = 1): # largeur impair
         ld = l1[1:] - l1[:-1]
         ld[0] = ld[1]
         return(ld)
+    return(lissage(np.gradient(l, edge_order = 2),largeur))
+
+# on prend le voisinage
+def derivee(l, largeur = 1): # largeur impair
+    if largeur == 1:
+        return(np.gradient(l, edge_order = 2))
     return(lissage(np.gradient(l, edge_order = 2),largeur))
 
 def integrate(l,initial = 0):
@@ -102,7 +119,7 @@ def joli(jour):
 #tous les 7 jours
 def axejours(lj):
     n = len(lj)
-    lk = [n-1 - 7*k for k in range(n//7)][::-1]
+    lk = [n-1 - 7*k for k in range(n//7+1)][::-1]
     #print(lk)
     ljaxe = [joli(lj[k]) for k in lk]
     plt.xticks(lk,ljaxe,rotation = 70,fontsize = 8)
@@ -117,29 +134,56 @@ def plotcourbes(courbes,titre='',xlabel = 0):
     for (courbe,nom,t) in courbes:
         lj = lj + [x[0] for x in courbe]
     lj = sorted(list(set(lj)))
-    #print(lj)
     axejours(lj)
     for (courbe,nom,t) in courbes:
         lv = val(lj,courbe)
-        k,v = [(k,lv[k]) for (k,j) in enumerate(lj) if lv[k] != None][-1]
+        lkv = [(k,lv[k]) for (k,j) in enumerate(lj) if lv[k] != None]
+        if lkv != []:
+            k,v = lkv[-1]
+        else:
+            k,v = 0,0
         if t != '=':
             plt.plot(lv,t)
         else:
             plt.plot(lv,'-', linewidth = 2)
         if nom != '':
             if xlabel == 0:
-                plt.text(k,lv[k],nom,fontdict = {'size':8})
+                plt.text(k,lv[k] if lv[k] != None else 0,nom,fontdict = {'size':8})
+            elif xlabel == 'random':
+                lind = [k for (k,v) in enumerate(lv) if v != None]
+                x = lind[random.randint(0,len(lind)-1)]
+                plt.text(x,lv[x],nom,fontdict = {'size':8})
             else:
-                plt.text(xlabel,lv[xlabel],nom,fontdict = {'size':8})
+                plt.text(xlabel,lv[xlabel] if lv[xlabel] != None else 0,
+                         nom,fontdict = {'size':8})
+    ax = plt.gca()
+    y0,y1 = ax.get_ylim()
+    ax.set_ylim(min(0,y0),y1)
 
-def trace(lcourbes,titre,fichier,xlabel = 0):
+
+#plt.clf();plotcourbes([(zipper([jour_de_num[j] for j in range(16)],[j for j in range(16)]),'a','-')],'b');plt.show()
+
+real = '='
+prev = '--'
+minmax = ':'
+
+def trace(lcourbes,titre,fichier,xlabel = 0,dimensions = None, close = True):
     plt.clf()
+    #plt.figure(figsize = dimensions)
     plotcourbes(lcourbes,xlabel=xlabel)
     plt.grid()
     plt.title(titre,fontdict = {'size':10})
-    plt.savefig(fichier + '.pdf', dpi=600)
-    plt.savefig(fichier + '.png', dpi=600)
+    try:
+        plt.savefig(fichier + '.pdf', dpi=600)
+    except:
+        print('problème pdf: '+ fichier)
+    try:
+        plt.savefig(fichier + '.png', dpi=600)
+    except:
+        print('problème png: '+ fichier)
     plt.show(False)
+    if close:
+        plt.close()
 
 def zipper(lj,lv):
     if len(lv) != len(lj):
@@ -231,12 +275,13 @@ def addday(j,k):
         j1 = nextday(j1)
     return(j1)
 
+jdebut = '2018-01-01'
 memo_num_de_jour = {}
-def num_de_jour(jour): # depuis le 1 janvier 2000: num 0
+def num_de_jour(jour): # depuis le 1 janvier 2018: num 0
     if jour in memo_num_de_jour:
         return(memo_num_de_jour[jour])
     n = 0
-    j = '2000-01-01'
+    j = jdebut
     while j != jour:
         memo_num_de_jour[j] = n
         n += 1
@@ -245,7 +290,7 @@ def num_de_jour(jour): # depuis le 1 janvier 2000: num 0
     return(n)
 
 jour_de_num = ['']*10000
-j = '2000-01-01'
+j = jdebut
 for n in range(len(jour_de_num)):
     jour_de_num[n] = j
     j = nextday(j)
@@ -296,3 +341,58 @@ def premieredonnee(l):
 #              ...
 #             ]
 #    }
+
+# majoré par 3
+def r0(l, derive = 7):
+    intervalle_seriel = 4.11 # = math.log(3.296)/0.29 
+    # l1: log de l
+    l1 = [math.log(x) if x>0 else 0 for x in l]
+    # dérivée de l1
+    dl1 = derivee(l1, largeur = derive) #derivee(l1,largeur=7) 
+    # r0 instantané
+    lr0 = [min(3,math.exp(c*intervalle_seriel)) for c in dl1]
+    return(lr0)
+
+population_dep = {1:656955, 2:526050, 3:331315, 4:165197, 5:141756, 6:1079396, 7:326875, 8:265531, 9:152398, 10:309907, 11:372705, 12:278360, 13:2034469, 14:691453, 15:142811, 16:348180, 17:647080, 18:296404, 19:240336, 21:532886, 22:596186, 23:116270, 24:408393, 25:539449, 26:520560, 27:600687, 28:429425, 29:906554, 30:748468, 31:1400935, 32:190040, 33:1633440, 34:1176145, 35:1082073, 36:217139, 37:605380, 38:1264979, 39:257849, 40:411979, 41:327835, 42:764737, 43:226901, 44:1437137, 45:682890, 46:173166, 47:330336, 48:76286, 49:815881, 50:490669, 51:563823, 52:169250, 53:305365, 54:730398, 55:181641, 56:755566, 57:1035866, 58:199596, 59:2588988, 60:825077, 61:276903, 62:1452778, 63:660240, 64:683169, 65:226839, 66:479000, 67:1132607, 68:763204, 69:1876051, 70:233194, 71:547824, 72:560227, 73:432548, 74:828405, 75:2148271, 76:1243788, 77:1423607, 78:1448625, 79:372627, 80:569769, 81:387898, 82:262618, 83:1073836, 84:560997, 85:683187, 86:437398, 87:370774, 88:359520, 89:332096, 90:140145, 91:1319401, 92:1613762, 93:1670149, 94:1406041, 95:1248354}
+
+population_france = sum([population_dep[x] for x in population_dep])
+population_dep[0] = population_france
+
+# les regions
+f = open('regions.csv','r')
+s = f.read()
+f.close()
+
+ls = [x.split('\t') for x in s.split('\n')]
+regions = {}
+depregion = {}
+nomdep = {}
+for x in ls:
+    d = x[0]
+    if d[1] not in 'ab':
+        nomdep[int(d)] = x[1]
+    r = x[3] #nom de region
+    if r not in regions and r != 'Corse':
+        regions[r] = [int(x[2])] # numero de region
+    try:
+        regions[r].append(int(x[0])) # le departement
+        depregion[int(x[0])] = int(x[2]) # numero de region
+    except:
+        pass # la corse...
+
+lregions = [(regions[r][0],regions[r][1:]) for r in regions] # numeros des regions et departements
+regiondep = dict(lregions)
+
+def derivee_indic(t,dec):
+    return(np.array([derivee(d,largeur=dec) for d in t]))
+
+def lissage_indic77(t):
+    res = np.array([lissage(d,7) for d in t])
+    return(res)
+
+def lissage77(x):
+    return(lissage(x,7))
+
+def id(x):
+    return(x)
+
