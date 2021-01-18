@@ -6,6 +6,7 @@ le code est dans les fichiers:
 - charge_indicateurs.py
 - correlation.py
 - synthese2.py
+- evaluation.py
 
 un jour je le passerai sous pandas.
 
