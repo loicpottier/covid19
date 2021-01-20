@@ -26,7 +26,7 @@ def courbes_prev_duree(x, duree, passe = 100, futur = 60, pas = 1):
         MRD = deriveM(MR)
         coefs = calcule_correlations()
         coefficients = [calcule_coefficients(y) for y in range(nnoms)]
-        MF,MRF,MRDF = prevoit_tout(futur, depart = depart)
+        MF,MRF,MRDF = prevoit_tout(futur, depart = depart, passe = True)
         f = np.mean if noms[x] in donnees_proportions else np.sum
         lcourbes.append(zipper(jourstext[xdep:xdep+futur],
                                f(MF[x,:,xdep:xdep+futur], axis = 0)))

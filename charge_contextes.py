@@ -1,5 +1,5 @@
 from outils import *
-
+ajourgoogletrends = False # True si mettre a jour les fichiers de requetes google
 ######################################################################
 # frequentations des lieux
 # https://www.google.com/covid19/mobility/
@@ -374,6 +374,74 @@ datavacances = {'nom': 'vacances',
 }
 
 print('vacances ok',jours[-1])
+######################################################################
+# couvre feu, confinements
+deps = datavacances['departements']
+jours = datavacances['jours']
+
+t = np.zeros((len(deps),len(jours),9))
+
+def confinement(numconf,cfdeps,j0,j1):
+    for dep in cfdeps:
+        d = deps.index(dep)
+        for j in range(num_de_jour(j0),num_de_jour(j1)+1):
+            t[d,j-num_de_jour(jours[0]),numconf] = 100
+
+# confinements
+
+# 17 mars au 11 mai: tous les departements
+confinement(0,deps,'2020-03-17','2020-05-11')
+# 30-10-2020 au 27-11-2020 confinement
+confinement(0,deps,'2020-10-30','2020-11-27')
+# 28-11-2020 au 14-12-2020 confinement mais commerces ouverts
+confinement(1,deps,'2020-11-28','2020-12-14')
+
+######################################################################
+# couvre-feu 21h-6h
+
+# 17-10-2020 au 23-10-2020
+confinement(2,[75,77,78,91,92,93,94,95, # ile de france
+               13,38,59,69,34,76,42,31],# 8 metropoles
+            '2020-10-17','2020-10-22')
+# 23-10-2020 au 30-10-2020, 21h à 6h
+json = chargejson('https://www.data.gouv.fr/fr/datasets/r/bfded8e2-e1d0-4601-8b81-0807f8dca65d',
+                  zip = False)
+cf2 = [x['properties']['INSEE_DEP'] for x in json['features']]
+cf2 = [int(x) for x in cf2 if x not in ['2A','2B']]
+confinement(2,cf2,'2020-10-23','2020-10-29')
+
+######################################################################
+# couvre-feu 20h-6h
+
+# 15-12-2020 au 15-01-2021
+confinement(3,deps,'2020-12-15','2021-01-15')
+######################################################################
+# couvre-feu 18h-6h
+
+# 02-01-2020 de 18h à 6h
+# Hautes-Alpes, Alpes-Maritimes, Ardennes, Doubs, Jura, Marne, Haute-Marne, Meurthe-et-Moselle, Meuse, Moselle, Nièvre, Haute-Saône, Saône-et-Loire, Vosges et Territoire de Belfort
+confinement(4,[5,6,8,25,39,51,52,54,55,57,58,70,71,88,90],
+            '2021-01-02','2021-01-30')
+# 12-01-2021 de 18h à 6h
+# Hautes-Alpes, Alpes-Maritimes, Ardennes, Doubs, Jura, Marne, Haute-Marne, Meurthe-et-Moselle, Meuse, Haute-Saône, Vosges, Moselle, Territoire de Belfort, Nièvre, Saône-et-Loire, Bas-Rhin, Bouches-du-Rhône, Haut-Rhin, Allier, Vaucluse, Cher, Côte d'Or, Alpes de Haute-Provence, Drôme et Var
+confinement(4,[5,6,8,25,39,51,52,54,55,57,58,70,71,88,90,67,13,68,3,84,18,21,4,26,83],
+            '2021-01-12','2021-01-30')
+# 16-01-2021 au 31-01-2021 couvre-feu de 18h à 6h
+confinement(4,deps,'2021-01-16','2021-01-30')
+
+dataconfinement = {'nom': 'confinement',
+                   'titre': 'confinement/couvre-feu',
+                   'dimensions': ['departements','jours','confinement'],
+                   'departements': deps,
+                   'jours': jours,
+                   'confinement': ['confinement',
+                                   'confinement+commerces',
+                                   'couvre-feu 21h-6h',
+                                   'couvre-feu 20h-6h',
+                                   'couvre-feu 18h-6h'],
+                   'valeurs': t}
+
+print('confinement/couvre-feu ok')
 
 ######################################################################
 # données mobilité Apple:
@@ -605,8 +673,9 @@ def charge_trends_dep(d,key,keywords,data,delai0):
 def charge_trends(keywords):
     delai = 0
     key = keywords[0].replace(' ','')[:10]
-    # enlever False pour mettre a jour
-    if False: #key in ['horaires','voyage','itinéraire']: # True si on veut les valeurs les plus récentes
+    # si on veut les valeurs les plus récentes
+    # car on a un nombre de requetes limité par jour
+    if ajourgoogletrends and key in ['horaires','voyage','itinéraire']: 
         data = {}
         for d in departements:
             print(d, end = ' ', flush = True)
@@ -752,7 +821,7 @@ print('population chargée')
 
 ######################################################################
 #
-contextes = [datamobilite, datameteo, datavacances, dataapple, datahygiene,
+contextes = [datamobilite, datameteo, datavacances, dataconfinement, dataapple, datahygiene,
              datagoogletrends, datagoogletrends_prev,
              regions, datapauvrete,lchamps_pauvrete[:-2],datapop]
 

@@ -359,7 +359,7 @@ for(d,dep) in enumerate(deps):
 #
 
 indicateurs = [dataurge, datahospiurge, datasosmedecin, 
-               datareatot, datahospitot, datadecestot,
+               datareatot, datahospitot,# datadecestot,
                datahospi, datarea, datadeces,
                datahospiage, # par région
                dataposage,

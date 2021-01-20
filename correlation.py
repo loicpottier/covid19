@@ -7,15 +7,26 @@ import pickle
 # chargement des données
 
 nouveau = False # False: on charge le fichier local
-nouveauprev = True # seulement les previsions, on met pas a jour les donnees
+nouveauprev = False # seulement les previsions, on met pas a jour les donnees
+nouveaucoefs = False
+inclusconfinement = True #False
 
-if len(sys.argv) > 1 and sys.argv[1] == 'nouveau':
-    nouveau = True
-    nouveauprev = True
+#coefs[ni('couvre-feu 18h-6h'),ni('hospitalisations')]
 
 if len(sys.argv) > 1 and sys.argv[1] == 'nouveauprev':
-    nouveau = False
     nouveauprev = True
+    nouveaucoefs = False
+    nouveau = False
+
+if len(sys.argv) > 1 and sys.argv[1] == 'nouveaucoefs':
+    nouveauprev = True
+    nouveaucoefs = True
+    nouveau = False
+
+if len(sys.argv) > 1 and sys.argv[1] == 'nouveau':
+    nouveauprev = True
+    nouveaucoefs = True
+    nouveau = True
 
 if nouveau:
     efface_cache()
@@ -37,30 +48,59 @@ else:
 
 print('nouveau',nouveau)
 print('nouveauprev',nouveauprev)
+print('nouveaucoefs',nouveaucoefs)
 
 f = open('contextes.pickle','rb')
 contextes = pickle.load(f)
 f.close()
 print('fichier des contextes chargé')
 
-datamobilite, datameteo, datavacances, dataapple, datahygiene, datagoogletrends, datagoogletrends_prev, regions, datapauvrete, lchamps_pauvrete, datapop = contextes
+datamobilite, datameteo, datavacances, dataconfinement, dataapple, datahygiene, datagoogletrends, datagoogletrends_prev, regions, datapauvrete, lchamps_pauvrete, datapop = contextes
 
 f = open('indicateurs.pickle','rb')
 indicateurs = pickle.load(f)
 f.close()
 print('fichier des indicateurs chargé')
 
-dataurge, datahospiurge, datasosmedecin, datareatot, datahospitot, datadecestot, datahospi, datarea, datadeces, datahospiage, dataposage, datapos, datatauxposage, datatauxpos, dataR, dataexcesdeces, datadeces17mai = indicateurs
+dataurge, datahospiurge, datasosmedecin, datareatot, datahospitot, datahospi, datarea, datadeces, datahospiage, dataposage, datapos, datatauxposage, datatauxpos, dataR, dataexcesdeces, datadeces17mai = indicateurs
 
-contextes_non_temporels = [x[1] for x in lchamps_pauvrete] + ['population'] 
+contextes_non_temporels = [x[1] for x in lchamps_pauvrete] + ['population']
+
+donnees_proportions = (['commerces et espaces de loisir (dont restaurants et bars)',
+                        "magasins d'alimentation et pharmacies",
+                        'parcs',
+                        'arrêts de transports en commun',
+                        'travail',
+                        'résidence',
+                        'en voiture',
+                        'à pied',
+                        'en transport en commun',
+                        'recherche Covid google',
+                        'recherche testcovid google',
+                        'recherche pharmacie google',
+                        'recherche horaires google',
+                        'recherche voyage google',
+                        'recherche itinéraire google',
+                        'excesdeces', 'R', 'taux positifs', 'taux positifs 09', 'taux positifs 19',
+                        'taux positifs 29', 'taux positifs 39', 'taux positifs 49',
+                        'taux positifs 59',
+                        'taux positifs 69', 'taux positifs 79', 'taux positifs 89',
+                        'taux positifs 90']
+                       + dataconfinement['confinement'])
 ######################################################################
 # on ne garde que les departements communs aux donnees
 
-ldatacont = [datamobilite, datameteo, datavacances, dataapple,
+ldatacont = [datamobilite, datameteo, datavacances,
+             dataapple,
              datagoogletrends]
 
-ldataind = ([dataurge, datahospiurge, datasosmedecin, dataR, datareatot,
-             datahospi, datarea, datadeces, datapos, datatauxpos, datahospitot, datadecestot] 
+if inclusconfinement:
+    ldatacont.append(dataconfinement)
+    print('----------- on a inclus les données de confinement/couvre-feu')
+
+ldataind = ([dataurge, datahospiurge, datasosmedecin, #dataR,
+             datareatot,
+             datahospi, datarea, datadeces, datapos, datatauxpos, datahospitot] 
             + [datahospiage[age] for age in sorted([a for a in datahospiage])
                #if age != '0'
             ]
@@ -103,9 +143,11 @@ donnees_meteo = ['pression', 'humidité', 'précipitations sur 24', 'températur
 
 nnoms,ndeps,njours = (len(noms), len(departements), len(jours))
 
+nomsprevus = datavacances['vacances'] + dataconfinement['confinement'] + datameteo['meteo']
+
 present = aujourdhui
 def fin_donnees(data):
-    if data['nom'] not in ['vacances']:
+    if data['nom'] not in nomsprevus:
         return(present)
     else:
         return(data['jours'][-1])
@@ -153,6 +195,11 @@ def ni(x):
     return(noms.index(x))
 
 #plt.plot(np.sum(M[ni('urgences'),:,:], axis = 0));plt.show()
+'''
+plt.plot(np.sum(M[ni('urgences'),:,:], axis = 0))
+plt.plot(np.mean(M[ni('couvre-feu 18h-6h'),:,:], axis = 0))
+plt.show()
+'''
 
 jaujourdhui = num_de_jour(aujourdhui) - jours[0]
 
@@ -171,25 +218,6 @@ def normalise_data(m):
 normalise_data(M)
 
 # matrice des données relativisées à la population des départements
-
-donnees_proportions = ['commerces et espaces de loisir (dont restaurants et bars)',
-                       "magasins d'alimentation et pharmacies",
-                       'parcs',
-                       'arrêts de transports en commun',
-                       'travail',
-                       'résidence',
-                       'en voiture',
-                       'à pied',
-                       'en transport en commun',
-                       'recherche Covid google',
-                       'recherche testcovid google',
-                       'recherche pharmacie google',
-                       'recherche horaires google',
-                       'recherche voyage google',
-                       'recherche itinéraire google',
-                       'excesdeces', 'R', 'taux positifs', 'taux positifs 09', 'taux positifs 19',
-                       'taux positifs 29', 'taux positifs 39', 'taux positifs 49', 'taux positifs 59',
-                       'taux positifs 69', 'taux positifs 79', 'taux positifs 89', 'taux positifs 90']
 
 utiliser_proportions = True
 
@@ -228,36 +256,9 @@ MRD = deriveM(MR)
 
 ######################################################################
 # décalages et corrélations
-# c'est les décalages qui prennent du temps
 
-decmax = 40
-
-# x et y indices de donnees dans m
-# x est decalé dans le passé
-def ldecalages(M,x,y):
-    lc = [None]*(decmax+1)
-    for d in range(decmax+1): # d décalage dans le passé
-        #print(d)
-        xx0,xx1 = intervalle[x]
-        yy0,yy1 = intervalle[y]
-        x0 = max(-d,0,xx0,yy0-d)
-        x1 = min(njours,njours-d,xx1,yy1-d)
-        y0 = max(d,0,yy0,xx0+d)
-        y1 = min(njours,njours+d,yy1,xx1+d)
-        corr = np.corrcoef(M[x,:,x0:x1].flatten(),
-                           M[y,:,y0:y1].flatten())
-        #print(d,x0,x1,y0,y1, intervalle[x],intervalle[y],njours,corr[0,1])
-        #print(corr[0,1])
-        lc[d] = [corr[0,1],x0,x1,y0,y1]
-    #plt.show()
-    return(lc)
-
-#ldecalages(MRD,ni('travail'),ni('urgences'))
-#ldecalages(MRD,ni('résidence'),ni('urgences'))
-
-#plt.plot([x[0] for x in ldecalages(MRD,ni('travail'),ni('urgences'))])
-#plt.plot([x[0] for x in ldecalages(MRD,ni('recherche horaires google'),ni('urgences'))])
-#plt.grid();plt.show()
+decmax = 50 # pour les calculs
+decmaxaccepte = 40 # au dela, on vire
 
 def premier_max_local(l): #et plus grand que l[0], sinon l[0]
     lmax = [] # les max locaux
@@ -274,36 +275,13 @@ def premier_max_local(l): #et plus grand que l[0], sinon l[0]
     else:
         return(0)
 
-def best_corr(lc):
-    lcc = lissage([c for [c,x0,x1,y0,y1] in lc],7)
-    if abs(max(lcc)) > abs(min(lcc)):
-        dmax = premier_max_local(lcc)
-        if dmax == 0:
-            cmax = lc[0][0]
-        else:
-            cmax = lcc[dmax]
-        [c,x0,x1,y0,y1] = lc[dmax]
-        return(([cmax,x0,x1,y0,y1],dmax))
+def correlate(x,y):
+    nx = np.linalg.norm(x)
+    ny = np.linalg.norm(y)
+    if nx == 0 or ny == 0:
+        return(np.correlate(x,y,mode = 'valid'))
     else:
-        dmin = premier_max_local([-x for x in lcc])
-        if dmin == 0:
-            cmin = lc[0][0]
-        else:
-            cmin = lcc[dmin]
-        [c,x0,x1,y0,y1] = lc[dmin]
-        #print(decmin,dmin,lc[:5],lcc[:5])
-        return(([cmin,x0,x1,y0,y1],dmin))
-
-#best_corr(ldecalages(MRD,ni('travail'),ni('urgences')))
-#best_corr(ldecalages(MRD,ni('urgences'),ni('travail')))
-
-def correlation(M,x,y):
-    lc = ldecalages(M,x,y)
-    cjp,dp = best_corr(lc)
-    return([dp] + cjp)
-
-######################################################################
-# nouvelle version plus rapide
+        return(np.correlate(x,y,mode = 'valid')/(nx*ny))
 
 def correlation(MRD,x,y):
     #x = ni('travail')
@@ -312,21 +290,26 @@ def correlation(MRD,x,y):
     y0,y1 = intervalle[y]
     z1 = max(x1,y1)
     z0 = min(x0,y0)
-    vx = np.concatenate([np.zeros((ndeps,x0-z0 + decmax)),
+    # vx longueur z1 - z0 + decmax
+    # vy longueur z1 - z0
+    # se terminent le meme jour
+    vx = np.concatenate([np.zeros((ndeps,max(0,x0-z0 + decmax))),
                          MRD[x,:,x0:x1],
                          np.zeros((ndeps,z1-x1))], axis = 1)
-    vy = np.concatenate([np.zeros((ndeps,y0-z0)),
+    vy = np.concatenate([np.zeros((ndeps,max(0,y0-z0))),
                          MRD[y,:,y0:y1],
                          np.zeros((ndeps,z1-y1))], axis = 1)
     vxm = np.mean(vx,axis=1)
     vym = np.mean(vy,axis=1)
-    lcs = [np.correlate(vx[dep]-vxm[dep],vy[dep]-vym[dep],mode = 'valid')
-           /(np.linalg.norm(vx[dep]-vxm[dep])*np.linalg.norm(vy[dep]-vym[dep]))
+    lcs = [correlate(vx[dep]-vxm[dep],vy[dep]-vym[dep])
            for dep in range(ndeps)]
     lcsm = np.mean(lcs,axis=0)
     d = np.argmax(np.abs(lcsm))
     corr = lcsm[d]
     d = decmax - d
+    if d == 0 or d > decmaxaccepte:
+        d = 0
+        corr = lcsm[-1]
     xx0,xx1 = intervalle[x]
     yy0,yy1 = intervalle[y]
     x0 = max(-d,0,xx0,yy0-d)
@@ -337,8 +320,15 @@ def correlation(MRD,x,y):
 
 #correlation(MRD,ni('travail'),ni('urgences'))
 #correlation(MRD,ni('recherche horaires google'),ni('urgences'))
+#correlation(MRD,ni('c.feu 20h-6h'),ni('urgences'))
+#correlation(MRD,ni('couvre-feu 20h-6h'),ni('urgences'))
+'''
+plt.plot(np.sum(M[ni('urgences'),:,:], axis = 0))
+plt.plot(np.mean(M[ni('couvre-feu 20h-6h'),:,:], axis = 0))
+plt.show()
+'''
 
-print('calcul des décalages et corrélations')
+
 # contient les [decalage, correlation, xjour0,xjour1, yjour0,yjour1]
 def calcule_correlations():
     coefs = np.zeros((nnoms,nnoms,6))
@@ -353,7 +343,8 @@ def calcule_correlations():
                     print('-------- travail - urgences: decalage',d, 'correlation', corr)
     return(coefs)
 
-if nouveau:
+if nouveaucoefs:
+    print('calcul des décalages et corrélations')
     coefs = calcule_correlations()
     f = open('coefs.pickle','wb')
     pickle.dump(coefs,f)
@@ -367,19 +358,46 @@ print('fichier des décalages et corrélations chargé')
 #coefs[ni('recherche horaires google'),ni('urgences')]
 #coefs[ni('urgences'),ni('réanimations')]
 #coefs[ni('urgences'),ni('décès')]
+#coefs[ni('R'),ni('hospitalisations')]
+#coefs[ni('couvre-feu 20h-6h'),ni('urgences')]
+'''
+L = [(x,int(coefs[ni(x),ni('hospitalisations')][1]*100),
+      int(coefs[ni(x),ni('hospitalisations')][0])) for x in noms]
+for (x,c,d) in L:
+    if abs(c) > 20:
+        print(x,d,c)
 
+résidence 0 -40
+vacances 27 -38
+recherche Covid google 23 -42
+confinement 23 -35
+
+résidence 0 -40
+vacances 27 -38
+recherche Covid google 23 -42
+
+plt.plot(np.mean(MF[ni('recherche Covid google'),:,:],axis=0))
+plt.plot(np.mean(MF[ni('hospitalisations'),:,:],axis=0))
+plt.plot(np.mean(MF[ni('décès'),:,:],axis=0))
+plt.show()
+'''
+
+noms_exclus_dependances = [] #dataconfinement['confinement']
+
+# abs(corr) > 0.2 and d >= 1
 def dependances(y):
     lcont = []
     lind = []
     for x in range(nnoms):
-        [d,corr,x0,x1,y0,y1] = coefs[x,y]
-        if noms[y] in nomsind:
-            if abs(corr) > 0.2 and d >= 1:
-                lind.append(x)
-        if noms[y] in nomscont:
-            if abs(corr) > 0.2 and d >= 1:
-                lcont.append(x)
-    return((lcont,lind))
+        if x not in noms_exclus_dependances:
+            [d,corr,x0,x1,y0,y1] = coefs[x,y]
+            if noms[y] in nomsind:
+                if abs(corr) > 0.2 and d >= 1:
+                    lind.append(x)
+            if noms[y] in nomscont:
+                if abs(corr) > 0.2 and d >= 1:
+                    lcont.append(x)
+    return(lcont + lind)
 
 #dependances(ni('réanimations'))
 #dependances(ni('urgences'))
@@ -388,16 +406,25 @@ def dependances(y):
 #dependances(ni('température'))
 #dependances(ni('précipitations sur 24'))
 #dependances(ni('travail'))
+'''
+y = ni('couvre-feu 21h-6h')
+for x in [(int(coefs[x,y][0]),"%0.2f" % coefs[x,y][1],noms[x][:25]) for x in dependances(y)]: print(x)
+plt.plot(np.mean(MF[ni('couvre-feu 21h-6h'),:,:], axis=0));plt.show()
+plt.plot(np.mean(MF[ni('température'),:,:], axis=0));plt.show()
+plt.plot(np.mean(MF[ni('urgences'),:,:], axis=0));plt.show()
+plt.plot(np.mean(MF[ni('température'),:,:], axis=0));plt.show()
+
+
+'''
 ######################################################################
 # coefficients de prevision
 # pour les prévisions
 # calculés sur la matrice MRD des derivees des valeurs relatives
 
 def calcule_coefficients(y):
-    lcont,lind = dependances(y)
-    ldepend = lcont + lind
+    ldepend = dependances(y)
     if ldepend == []:
-        print('probleme pas de dependance',noms[y])
+        print('pas de dependance pour',noms[y])
         return(None)
     # plage de jours communs aux dependances
     ymin = 0
@@ -429,17 +456,33 @@ def calcule_coefficients(y):
 coefficients = [calcule_coefficients(y) for y in range(nnoms)]
 
 #[(ldepend,ymin,ymax) for [C,ldepend,ymin,ymax] in coefficients]
+'''
+C = coefficients[ni('urgences')][0]
+depend = coefficients[ni('urgences')][1]
+C1 = C[:] / np.max(np.abs(C),axis = 0)
+plt.plot(np.transpose(C1),'o')
+plt.grid()
+plt.show()
+Cm = np.mean(C1,axis=0)
+for kx,x in enumerate(depend):
+  print(noms[x], ':', int(100*Cm[kx]))
 
+plt.plot([noms[x][:3] for x in depend],np.transpose(C1),'o');plt.show()
+ax = plt.gca();im = ax.imshow(C1,cmap="RdYlGn_r");plt.show()
+'''
 ######################################################################
 # prevision du lendemain répétée
 
 # prevoit un jour en fonction des precedents
-def prevoit_data(MF,MRF,MRDF,y,futur,depart = aujourdhui):
-    if noms[y] == 'vacances':
-        jour = intervalle[y][1] - 1 + futur # prévoir les vacances? mouhaha!
+def prevoit_data(MF,MRF,MRDF,y,futur,depart = aujourdhui, passe = False):
+    if passe:
+        if noms[y] in nomsprevus:
+            jour = intervalle[y][1] - 1 + futur # prévoir les vacances? mouhaha!
+        else:
+            jour = min(num_de_jour(depart) - jours[0], intervalle[y][1] - 1) + futur
     else:
-        jour = min(num_de_jour(depart) - jours[0], intervalle[y][1] - 1) + futur
-    if jour < njours:
+        jour = num_de_jour(depart) - jours[0] + futur
+    if (passe or jour >= intervalle[y][1]) and jour < njours:
         # calcul de MRDF
         if coefficients[y] != None:
             [C,ldepend,ymin,ymax] = coefficients[y]
@@ -450,7 +493,7 @@ def prevoit_data(MF,MRF,MRDF,y,futur,depart = aujourdhui):
             for dep in range(ndeps):
                 MRDF[y,dep,jour] = L[dep] @ C[dep]
         else:
-            #print('pas prévu',jour_de_num[jour + jours[0]],noms[y])
+            print('pas prévu',jour_de_num[jour + jours[0]],noms[y])
             MRDF[y,:,jour] = 0 #MRDF[y,:,jour-1]
         # calcul de MRF: on intègre
         if aderiver(y):
@@ -466,7 +509,12 @@ def prevoit_data(MF,MRF,MRDF,y,futur,depart = aujourdhui):
         else:
             MF[y,:,jour] = copy.deepcopy(MRF[y,:,jour])
 
-def prevoit_tout(maxfutur, depart = aujourdhui, maxdata = 1.5):
+def prevoit_tout(maxfutur, depart = aujourdhui, maxdata = 1.5, passe = False):
+    # le premier jour ou manque une valeur
+    depart0 = jour_de_num[np.min([jours[0] + intervalle[x][1]-1 for x in range(nnoms)]
+                                 + [num_de_jour(depart)])]
+    maxfutur = maxfutur + num_de_jour(depart) - num_de_jour(depart0) 
+    print('prevision de tout à partir du ',depart0)
     MF = copy.deepcopy(M)
     MRF = copy.deepcopy(MR)
     MRDF = copy.deepcopy(MRD)
@@ -474,7 +522,7 @@ def prevoit_tout(maxfutur, depart = aujourdhui, maxdata = 1.5):
         print(str(futur) + ' ', end = '', flush = True)
         for y in range(nnoms):
             #print(str(y) + ' ', end ='',flush=True)
-            prevoit_data(MF,MRF,MRDF,y,futur,depart = depart)
+            prevoit_data(MF,MRF,MRDF,y,futur,depart = depart0, passe = passe)
     print('prevision finie')
     for x in range(nnoms):
         for dep in range(ndeps):
@@ -594,6 +642,56 @@ if nouveauprev:
            ],
           'prévision du taux de reproduction R 06',
           DIRSYNTHESE2 + '_prevision_R_par_urgences_hospi 06')
+
+######################################################################
+# contextes influents
+if nouveauprev:
+    passe = 60
+    trace([(zipper(jourstext[jaujourdhui-passe:min(jaujourdhui+1,intervalle[x][1])],
+                   lissage(np.mean(M[x,:,jaujourdhui-passe:min(jaujourdhui+1,intervalle[x][1])],
+                                   axis = 0),7)
+                   if noms[x] != 'vacances'
+                   else np.mean(M[x,:,jaujourdhui-passe:min(jaujourdhui+1,intervalle[x][1])],
+                                   axis = 0)),
+            noms[x][:25],'-')
+           for x in [ni(x) for x in ['commerces et espaces de loisir (dont restaurants et bars)',
+                                     "magasins d'alimentation et pharmacies",
+                                     'arrêts de transports en commun',
+                                     'travail',
+                                     'résidence',
+                                     'humidité',
+                                     'température',
+                                     'vacances',
+                                     'à pied',
+                                     'en transport en commun',
+                                     'recherche voyage google']]],
+          'contextes corrélés',
+          DIRSYNTHESE2 + '_contextes_influents',
+          xlabel = 'random')
+######################################################################
+# recherches google et urgences
+if nouveauprev:
+    decalage = 17
+    x0,x1 = intervalle[ni('urgences')][0]+30, jaujourdhui + 1
+    xrech = intervalle[ni('recherche horaires google')][1]
+    xurg = intervalle[ni('urgences')][1]
+
+    lv = np.mean([np.mean(M[ni(x),:,x0-decalage:xrech], axis = 0)
+                  for x in ['recherche horaires google',
+                            'recherche voyage google',
+                            'recherche itinéraire google']],
+                 axis = 0)
+    lv = lissage(200 + 10*lv,7)
+
+    trace([(zipper(jourstext[x0:xrech+decalage],
+                   lv),
+            'rech + ' + str(decalage) + ' jours','-'),
+           (zipper(jourstext[x0:xurg],
+                   np.sum(M[ni('urgences'),:,x0:xurg],axis = 0)),
+            'urgences','-')],
+          'recherche google voyage/itinéraire/horaire',
+          DIRSYNTHESE2 + '_recherche google',
+          xlabel = 'random')
 
 ######################################################################
 # qualité des previsions
