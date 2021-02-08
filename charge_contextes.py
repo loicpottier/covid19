@@ -1,5 +1,5 @@
 from outils import *
-ajourgoogletrends = False # True si mettre a jour les fichiers de requetes google
+ajourgoogletrends = False #True si mettre a jour les fichiers de requetes google
 ######################################################################
 # frequentations des lieux
 # https://www.google.com/covid19/mobility/
@@ -26,6 +26,7 @@ elif '\t' in ls[0][0]:
     ls = [x.split('\t') for x in s.split('\n')]
 
 f.close()
+os.system('rm -rf mobilite_google Region_Mobility_Report_CSVs.zip')
 
 datalieux = []
 departements = []
@@ -404,10 +405,18 @@ confinement(2,[75,77,78,91,92,93,94,95, # ile de france
                13,38,59,69,34,76,42,31],# 8 metropoles
             '2020-10-17','2020-10-22')
 # 23-10-2020 au 30-10-2020, 21h à 6h
-json = chargejson('https://www.data.gouv.fr/fr/datasets/r/bfded8e2-e1d0-4601-8b81-0807f8dca65d',
+'''
+jsont = chargejson('https://www.data.gouv.fr/fr/datasets/r/bfded8e2-e1d0-4601-8b81-0807f8dca65d',
                   zip = False)
-cf2 = [x['properties']['INSEE_DEP'] for x in json['features']]
+# ou bien, si ca merde,
+f = open('couvre-feu-20201023.geojson','r')
+s = f.read()
+f.close()
+jsont = json.loads(s)
+cf2 = [x['properties']['INSEE_DEP'] for x in jsont['features']]
 cf2 = [int(x) for x in cf2 if x not in ['2A','2B']]
+'''
+cf2 = [1, 5, 6, 7, 8, 9, 10, 12, 13, 14, 21, 26, 30, 31, 34, 35, 37, 38, 39, 42, 43, 45, 48, 49, 51, 54, 59, 60, 62, 63, 64, 65, 66, 67, 69, 71, 73, 74, 75, 76, 77, 78, 81, 82, 83, 84, 87, 91, 92, 93, 94, 95]
 confinement(2,cf2,'2020-10-23','2020-10-29')
 
 ######################################################################
@@ -427,7 +436,7 @@ confinement(4,[5,6,8,25,39,51,52,54,55,57,58,70,71,88,90],
 confinement(4,[5,6,8,25,39,51,52,54,55,57,58,70,71,88,90,67,13,68,3,84,18,21,4,26,83],
             '2021-01-12','2021-01-30')
 # 16-01-2021 au 31-01-2021 couvre-feu de 18h à 6h
-confinement(4,deps,'2021-01-16','2021-01-30')
+confinement(4,deps,'2021-01-16','2021-02-28')
 
 dataconfinement = {'nom': 'confinement',
                    'titre': 'confinement/couvre-feu',

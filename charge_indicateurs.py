@@ -47,7 +47,9 @@ for x in csv:
               for c in ['date_de_passage',
                         'nbre_pass_corona',
                         'nbre_hospit_corona',
-                        'nbre_acte_corona']]
+                        # virer sosmedecin car que 43 departements le donnent
+                        #'nbre_acte_corona'
+              ]]
         td[dep].append(lv)
 
 maxjours = max([len(td[x]) for x in td])
@@ -68,14 +70,16 @@ datahospiurge = {'nom': 'hospitalisation urgences',
                  'jours': jours,
                  'departements': [int(d) for d in deps],
                  'valeurs': np.array([[mfloat(x[2]) for x in td[dep]] for dep in deps])}
+'''
 datasosmedecin = {'nom': 'sosmedecin',
                   'titre': 'sosmedecin quotidien',
                   'dimensions': ['departements', 'jours'],
                   'jours': jours,
                   'departements': [int(d) for d in deps],
                   'valeurs': np.array([[mfloat(x[3]) for x in td[dep]] for dep in deps])}
-
-print('urge, hospiurge, sosmedecin ok', jours[-1])
+'''
+#print('urge, hospiurge, sosmedecin ok', jours[-1])
+print('urge, hospiurge ok', jours[-1])
 ######################################################################
 # hospitalieres
 '''
@@ -358,7 +362,8 @@ for(d,dep) in enumerate(deps):
 ######################################################################
 #
 
-indicateurs = [dataurge, datahospiurge, datasosmedecin, 
+indicateurs = [dataurge, datahospiurge,
+               #datasosmedecin, 
                datareatot, datahospitot,# datadecestot,
                datahospi, datarea, datadeces,
                datahospiage, # par région

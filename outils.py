@@ -75,19 +75,25 @@ import scipy.signal
 
 # lissage sur d # d impair
 def lissage(l,d):
+    if len(l) <= 10: return(l)
     l = np.array(l)
     d2 = d//2
     # on complete comme si c'etait de periode d et lineairement
-    l0 = np.concatenate([np.zeros(d2),l, np.zeros(d2)])
-    l0[-d2:] = l[-d2:] + l[-1] - l[-1-d2]
-    l0[:d2] = l[:d2] + l[0] - l[d2]
+    l0 = np.concatenate([np.zeros(d),l, np.zeros(d)])
+    l0[-d:] = l[-d:] + l[-1] - l[-1-d]
+    l0[:d] = l[:d] + l[0] - l[d]
     #print(l0)
     #l1 = np.convolve(l0,np.ones(d)/d,mode='valid')
     l1 = scipy.signal.convolve(l0,np.ones(d)/d,mode='valid')
-    return(l1)
-
+    return(l1[d2+1:-d2-1])
+'''
+plt.plot([1,3,5,2,4,6,3,5,7,4])
+plt.plot(lissage([1,3,5,2,4,6,3,5,7,4],3))
+plt.show()
+'''
 # on prend le voisinage
 def derivee(l, largeur = 1): # largeur impair
+    if len(l) <= 3: return(l)
     if largeur == 1:
         l1 = np.array(np.concatenate([l[:1],l]))
         ld = l1[1:] - l1[:-1]
@@ -95,8 +101,8 @@ def derivee(l, largeur = 1): # largeur impair
         return(ld)
     return(lissage(np.gradient(l, edge_order = 2),largeur))
 
-# on prend le voisinage
-def derivee(l, largeur = 1): # largeur impair
+# derivee centrée
+def deriveebis(l, largeur = 1): # largeur impair
     if largeur == 1:
         return(np.gradient(l, edge_order = 2))
     return(lissage(np.gradient(l, edge_order = 2),largeur))
@@ -129,7 +135,7 @@ def val(jours,l):
     d = dict(l)
     return([d[j] if j in d else None for j in jours])
 
-def plotcourbes(courbes,titre='',xlabel = 0):
+def plotcourbes(courbes,titre='',xlabel = 0,fontcourbes = 8):
     lj = []
     for (courbe,nom,t) in courbes:
         lj = lj + [x[0] for x in courbe]
@@ -148,14 +154,15 @@ def plotcourbes(courbes,titre='',xlabel = 0):
             plt.plot(lv,'-', linewidth = 2)
         if nom != '':
             if xlabel == 0:
-                plt.text(k,lv[k] if lv[k] != None else 0,nom,fontdict = {'size':8})
+                plt.text(k,lv[k] if lv[k] != None else 0,nom,
+                         fontdict = {'size':fontcourbes})
             elif xlabel == 'random':
                 lind = [k for (k,v) in enumerate(lv) if v != None]
                 x = lind[random.randint(0,len(lind)-1)]
-                plt.text(x,lv[x],nom,fontdict = {'size':8})
+                plt.text(x,lv[x],nom,fontdict = {'size':fontcourbes})
             else:
                 plt.text(xlabel,lv[xlabel] if lv[xlabel] != None else 0,
-                         nom,fontdict = {'size':8})
+                         nom,fontdict = {'size':fontcourbes})
     ax = plt.gca()
     y0,y1 = ax.get_ylim()
     ax.set_ylim(min(0,y0),y1)
@@ -167,10 +174,11 @@ real = '='
 prev = '--'
 minmax = ':'
 
-def trace(lcourbes,titre,fichier,xlabel = 0,dimensions = None, close = True):
+def trace(lcourbes,titre,fichier,xlabel = 0,dimensions = None, close = True,
+          fontcourbes = 8):
     plt.clf()
     #plt.figure(figsize = dimensions)
-    plotcourbes(lcourbes,xlabel=xlabel)
+    plotcourbes(lcourbes,xlabel=xlabel,fontcourbes = fontcourbes)
     plt.grid()
     plt.title(titre,fontdict = {'size':10})
     try:
@@ -296,7 +304,13 @@ for n in range(len(jour_de_num)):
     j = nextday(j)
 
     
-def table(t):
+def table0(t):
+    ts = ('<div class="container-fluid"><table border = 0 >'
+          + '\n'.join(['<tr>' + ''.join(['<td><div class="container-fluid">' + x + '</div></td>' for x in r]) + '</tr>' for r in t])
+          + '</table></div>')
+    return(ts)
+
+def table1(t):
     ts = ('<div class="container-fluid"><table border = 1 >'
           + '\n'.join(['<tr>' + ''.join(['<td><div class="container-fluid">' + x + '</div></td>' for x in r]) + '</tr>' for r in t])
           + '</table></div>')
@@ -396,3 +410,7 @@ def lissage77(x):
 def id(x):
     return(x)
 
+# https://www.jchr.be/python/ecma-48.htm
+def printback(s):
+    s = s + ' '
+    print("\x1b[" + str(len(s)) + "8D" + s, end = '', flush = True)
