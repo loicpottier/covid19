@@ -1,14 +1,17 @@
 import urllib.request
 import gzip
 import pickle
-dircache = '/home/loic/Dropbox/covid19/previsions/cache/'
+DIRCOVID19 = '/home/loic/covid19/' # pour les gros fichiers
+DIRCOVID19UK = '/home/loic/covid19UK/' # pour les gros fichiers
+DIRCACHE = DIRCOVID19 + 'cache/'
 
 try:
     # dictionnaire des contenus des urls
-    f = open(dircache + 'cache.pickle','rb')
+    f = open(DIRCACHE + 'cache.pickle','rb')
     cache = pickle.load(f)
     f.close()
 except:
+    print('pas de cache')
     cache = {}
 
 compteur = 0
@@ -16,7 +19,7 @@ compteur = 0
 def efface_cache():
     global cache
     cache = {}
-    f = open(dircache + 'cache.pickle','wb')
+    f = open(DIRCACHE + 'cache.pickle','wb')
     pickle.dump(cache,f)
     f.close()
 
@@ -26,7 +29,7 @@ def sauve_cache():
                         SAUVEGARDE DU CACHE
 **********************************************************************
 """)          
-    f = open(dircache + 'cache.pickle','wb')
+    f = open(DIRCACHE + 'cache.pickle','wb')
     pickle.dump(cache,f)
     f.close()
 

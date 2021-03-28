@@ -12,6 +12,7 @@ import random
 from urlcache import *
 
 DIRSYNTHESE = 'synthese/'
+DIRSYNTHESEUK = 'syntheseUK/'
 
 def mfloat(x):
     try:
@@ -38,6 +39,10 @@ def mmax(l):
 def moyenne(l):
     return(sum(l)/len(l))
            
+def centrer(v):
+    vm = np.mean(v)
+    return(v - vm)
+
 # lissage de degre d
 def moyennen(l,d):
     s = 0
@@ -74,18 +79,20 @@ def lissagecum(L,d): # uniquement d impair
 import scipy.signal
 
 # lissage sur d # d impair
-def lissage(l,d):
+def lissage(l,d,repete = 1):
     if len(l) <= 10: return(l)
     l = np.array(l)
     d2 = d//2
-    # on complete comme si c'etait de periode d et lineairement
-    l0 = np.concatenate([np.zeros(d),l, np.zeros(d)])
-    l0[-d:] = l[-d:] + l[-1] - l[-1-d]
-    l0[:d] = l[:d] + l[0] - l[d]
-    #print(l0)
-    #l1 = np.convolve(l0,np.ones(d)/d,mode='valid')
-    l1 = scipy.signal.convolve(l0,np.ones(d)/d,mode='valid')
-    return(l1[d2+1:-d2-1])
+    for k in range(repete):
+        # on complete comme si c'etait de periode d et lineairement
+        l0 = np.concatenate([np.zeros(d),l, np.zeros(d)])
+        l0[-d:] = l[-d:] + l[-1] - l[-1-d]
+        l0[:d] = l[:d] + l[0] - l[d]
+        #print(l0)
+        #l1 = np.convolve(l0,np.ones(d)/d,mode='valid')
+        l1 = scipy.signal.convolve(l0,np.ones(d)/d,mode='valid')
+        l = l1[d2+1:-d2-1]
+    return(l)
 '''
 plt.plot([1,3,5,2,4,6,3,5,7,4])
 plt.plot(lissage([1,3,5,2,4,6,3,5,7,4],3))
@@ -118,17 +125,21 @@ def integrate(l,initial = 0):
 mois = ['déc','janv','fév','mars','avril','mai','juin','juil','août','sept','oct','nov','déc']
 
 def joli(jour):
-    j = jour[8:10]
-    m = jour[5:7]
-    return(j + ' ' + mois[int(m)])
+    if type(jour) is str:
+        j = jour[8:10]
+        m = jour[5:7]
+        return(j + ' ' + mois[int(m)])
+    else:
+        return(str(jour))
 
 #tous les 7 jours
-def axejours(lj):
+def axejours(ax,lj):
     n = len(lj)
     lk = [n-1 - 7*k for k in range(n//7+1)][::-1]
     #print(lk)
     ljaxe = [joli(lj[k]) for k in lk]
-    plt.xticks(lk,ljaxe,rotation = 70,fontsize = 8)
+    plt.xticks(lk,ljaxe,rotation = 70,fontsize = 6)
+    
     #plt.xticks(np.arange(0, 1, step=0.2))
 
 def val(jours,l):
@@ -140,7 +151,6 @@ def plotcourbes(courbes,titre='',xlabel = 0,fontcourbes = 8):
     for (courbe,nom,t) in courbes:
         lj = lj + [x[0] for x in courbe]
     lj = sorted(list(set(lj)))
-    axejours(lj)
     for (courbe,nom,t) in courbes:
         lv = val(lj,courbe)
         lkv = [(k,lv[k]) for (k,j) in enumerate(lj) if lv[k] != None]
@@ -151,7 +161,7 @@ def plotcourbes(courbes,titre='',xlabel = 0,fontcourbes = 8):
         if t != '=':
             plt.plot(lv,t)
         else:
-            plt.plot(lv,'-', linewidth = 2)
+            plt.plot(lv,'-', linewidth = 2,color = 'b')
         if nom != '':
             if xlabel == 0:
                 plt.text(k,lv[k] if lv[k] != None else 0,nom,
@@ -164,6 +174,7 @@ def plotcourbes(courbes,titre='',xlabel = 0,fontcourbes = 8):
                 plt.text(xlabel,lv[xlabel] if lv[xlabel] != None else 0,
                          nom,fontdict = {'size':fontcourbes})
     ax = plt.gca()
+    axejours(ax,lj)
     y0,y1 = ax.get_ylim()
     ax.set_ylim(min(0,y0),y1)
 
@@ -297,6 +308,8 @@ def num_de_jour(jour): # depuis le 1 janvier 2018: num 0
     memo_num_de_jour[jour] = n
     return(n)
 
+jaujourdhui = num_de_jour(aujourdhui)
+
 jour_de_num = ['']*10000
 j = jdebut
 for n in range(len(jour_de_num)):
@@ -356,16 +369,42 @@ def premieredonnee(l):
 #             ]
 #    }
 
-# majoré par 3
-def r0(l, derive = 7):
-    intervalle_seriel = 4.11 # = math.log(3.296)/0.29 
+intervalle_seriel = 4.11 # = math.log(3.296)/0.29 
+# majoré par maxR
+def r0(l, derive = 7,maxR = 10): #maxR = 3
     # l1: log de l
     l1 = [math.log(x) if x>0 else 0 for x in l]
     # dérivée de l1
-    dl1 = derivee(l1, largeur = derive) #derivee(l1,largeur=7) 
+    dl1 = derivee(l1, largeur = derive) #derivee(l1,largeur=7)
     # r0 instantané
-    lr0 = [min(3,math.exp(c*intervalle_seriel)) for c in dl1]
+    lr0 = [min(maxR,math.exp(c*intervalle_seriel)) for c in dl1]
     return(lr0)
+
+# majoré par maxR
+def r0bis(l, derive = 7,maxR = 3):
+    # dérivée de l
+    dl = derivee(l, largeur = derive)
+    l1 = [dl[k]/x if x != 0 else 0 for (k,x) in enumerate(l)]
+    # r0 instantané
+    lr0 = [min(maxR,math.exp(min(c,100)*intervalle_seriel)) for c in l1]
+    return(lr0)
+
+def Reff(l, derive = 7,maxR = 3):
+    # l1: log de l
+    l1 = [math.log(x) if x>0 else 0 for x in l]
+    # dérivée de l1
+    dl1 = derivee(l1, largeur = derive) #derivee(l1,largeur=7)
+    # r0 instantané
+    lr0 = [min(maxR,math.exp(min(100,c*intervalle_seriel))) for c in dl1]
+    return(lr0)
+
+maxfprimef = 1e3 # ca pete le determinant sinon
+
+def fprimef(l, derive = 7):
+    # dérivée de l
+    dl = derivee(l, largeur = derive)
+    l1 = [dl[k]*x/maxfprimef for (k,x) in enumerate(l)]
+    return(l1)
 
 population_dep = {1:656955, 2:526050, 3:331315, 4:165197, 5:141756, 6:1079396, 7:326875, 8:265531, 9:152398, 10:309907, 11:372705, 12:278360, 13:2034469, 14:691453, 15:142811, 16:348180, 17:647080, 18:296404, 19:240336, 21:532886, 22:596186, 23:116270, 24:408393, 25:539449, 26:520560, 27:600687, 28:429425, 29:906554, 30:748468, 31:1400935, 32:190040, 33:1633440, 34:1176145, 35:1082073, 36:217139, 37:605380, 38:1264979, 39:257849, 40:411979, 41:327835, 42:764737, 43:226901, 44:1437137, 45:682890, 46:173166, 47:330336, 48:76286, 49:815881, 50:490669, 51:563823, 52:169250, 53:305365, 54:730398, 55:181641, 56:755566, 57:1035866, 58:199596, 59:2588988, 60:825077, 61:276903, 62:1452778, 63:660240, 64:683169, 65:226839, 66:479000, 67:1132607, 68:763204, 69:1876051, 70:233194, 71:547824, 72:560227, 73:432548, 74:828405, 75:2148271, 76:1243788, 77:1423607, 78:1448625, 79:372627, 80:569769, 81:387898, 82:262618, 83:1073836, 84:560997, 85:683187, 86:437398, 87:370774, 88:359520, 89:332096, 90:140145, 91:1319401, 92:1613762, 93:1670149, 94:1406041, 95:1248354}
 
@@ -414,3 +453,33 @@ def id(x):
 def printback(s):
     s = s + ' '
     print("\x1b[" + str(len(s)) + "8D" + s, end = '', flush = True)
+
+def extrapole_manquantes(ld, manquante = 0):
+    # on extrapole linéairement les données manquantes (valeur 0)
+    for j in range(len(ld)):
+        if ld[j] == 0:
+            suiv = 0
+            jsuiv = j
+            try:
+                for u in range(j+1,len(ld)):
+                    if ld[u] != 0:
+                        suiv = ld[u]
+                        jsuiv = u
+                        raise NameError('ok')
+            except:
+                pass
+            prev = 0
+            jprev = j
+            try:
+                for u in range(j-1,-1,-1):
+                    if ld[u] != 0:
+                        prev = ld[u]
+                        jprev = u
+                        raise NameError('ok')
+            except:
+                pass
+            ld[j] = prev + (j - jprev)/(jsuiv-jprev) * (suiv - prev)
+            #print(j,jprev,jsuiv,suiv,prev,ld[j])
+    return(ld)
+
+extrapole_manquantes([1,2,0,0,5])

@@ -287,19 +287,6 @@ datatauxpos = datatauxposage['0']
 print('positifs age ok', jours[-1])
 
 ######################################################################
-# r0
-
-dataR = {'nom': 'R',
-         'titre': 'R: taux de reproduction',
-         'dimensions': ['departements', 'jours'],
-         'jours': dataurge['jours'],
-         'departements': dataurge['departements'],
-         'valeurs': np.array([lissage(r0(lissage(lissage(dataurge['valeurs'][dep],7),7),derive=14),7)
-                              for dep in range(len(dataurge['departements']))])
-}
-#plt.plot(np.transpose(dataR['valeurs']));plt.show()
-
-######################################################################
 # exces de deces durant les semaines 11 à 14 de 2020: 9 mars au 5 avril
 # https://www.data.gouv.fr/fr/datasets/niveaux-dexces-de-mortalite-standardise-durant-lepidemie-de-covid-19/
 # https://www.data.gouv.fr/fr/datasets/r/055ebba4-89dc-4996-962e-71dde6aaf7a6
@@ -371,12 +358,11 @@ indicateurs = [dataurge, datahospiurge,
                datapos,
                datatauxposage,
                datatauxpos,
-               dataR,
                dataexcesdeces,
                datadeces17mai
 ]
 
 import pickle
-f = open('indicateurs.pickle','wb')
+f = open(DIRCOVID19 + 'indicateurs.pickle','wb')
 pickle.dump(indicateurs,f)
 f.close()

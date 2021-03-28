@@ -25,7 +25,21 @@ if ';' in ls[0][0]: # des fois le séparateur change!!!!! fait chier google
 elif '\t' in ls[0][0]:
     ls = [x.split('\t') for x in s.split('\n')]
 
+ls2020 = ls
+
 f.close()
+f = open('mobilite_google/2021_FR_Region_Mobility_Report.csv','r')
+s = f.read()
+ls = [x.split(',') for x in s.split('\n')]
+if ';' in ls[0][0]: # des fois le séparateur change!!!!! fait chier google
+    ls = [x.split(';') for x in s.split('\n')]
+elif '\t' in ls[0][0]:
+    ls = [x.split('\t') for x in s.split('\n')]
+
+f.close()
+ls2021 = ls
+
+ls = ls2020 + ls2021[1:]
 os.system('rm -rf mobilite_google Region_Mobility_Report_CSVs.zip')
 
 datalieux = []
@@ -35,7 +49,8 @@ for d in range(1,96):
     dep = str(d)
     if d < 10:
         dep = '0' + str(d)
-    ld = [x[7:] for x in ls if len(x) >= 8 and x[5] == 'FR-'+dep]
+    # ils ont ajouté un champ place_id le 15-02-2021
+    ld = [x[8:] for x in ls if len(x) >= 8 and x[5] == 'FR-'+dep]
     ld = sorted(ld,key = lambda x: x[0])
     ld = [[x[0]] + [int(y) if y != '' else -100 for y in x[1:]]
           for x in ld]
@@ -257,7 +272,7 @@ def extrapole_manquantes(t,deps,jours,nomvaleurs):
                     prev = 0
                     jprev = j
                     try:
-                        for u in range(0,j-1):
+                        for u in range(j-1,-1,-1):
                             if t[d,u,k] != -100:
                                 prev = t[d,u,k]
                                 jprev = u
@@ -267,7 +282,7 @@ def extrapole_manquantes(t,deps,jours,nomvaleurs):
                     except:
                         pass
                     if jsuiv != j and jprev != j:
-                        t[d,j,k] = ((jsuiv - j)*suiv+ (j-jprev)*prev)/(jsuiv-jprev)
+                        t[d,j,k] = prev + (j - jprev)/(jsuiv-jprev) * (suiv - prev)
                     else:
                         if deps[d] not in deppb:
                             deppb.append(deps[d])
@@ -422,21 +437,31 @@ confinement(2,cf2,'2020-10-23','2020-10-29')
 ######################################################################
 # couvre-feu 20h-6h
 
-# 15-12-2020 au 15-01-2021
 confinement(3,deps,'2020-12-15','2021-01-15')
 ######################################################################
 # couvre-feu 18h-6h
 
-# 02-01-2020 de 18h à 6h
 # Hautes-Alpes, Alpes-Maritimes, Ardennes, Doubs, Jura, Marne, Haute-Marne, Meurthe-et-Moselle, Meuse, Moselle, Nièvre, Haute-Saône, Saône-et-Loire, Vosges et Territoire de Belfort
 confinement(4,[5,6,8,25,39,51,52,54,55,57,58,70,71,88,90],
             '2021-01-02','2021-01-30')
-# 12-01-2021 de 18h à 6h
 # Hautes-Alpes, Alpes-Maritimes, Ardennes, Doubs, Jura, Marne, Haute-Marne, Meurthe-et-Moselle, Meuse, Haute-Saône, Vosges, Moselle, Territoire de Belfort, Nièvre, Saône-et-Loire, Bas-Rhin, Bouches-du-Rhône, Haut-Rhin, Allier, Vaucluse, Cher, Côte d'Or, Alpes de Haute-Provence, Drôme et Var
 confinement(4,[5,6,8,25,39,51,52,54,55,57,58,70,71,88,90,67,13,68,3,84,18,21,4,26,83],
             '2021-01-12','2021-01-30')
-# 16-01-2021 au 31-01-2021 couvre-feu de 18h à 6h
-confinement(4,deps,'2021-01-16','2021-02-28')
+confinement(4,deps,'2021-01-16','2021-03-19')
+
+######################################################################
+#confinement le week-end
+
+confinement(5,[6,59],'2021-02-26','2021-03-19')
+confinement(5,[62],'2021-03-04','2021-03-19')
+
+######################################################################
+# confinement3
+confinement(6,[7,92,93,94,91,95,77,78,2,59,60,62,80,6,76,27],'2021-03-20','2021-04-18')
+
+######################################################################
+# couvre-feu de 19h à 6h
+confinement(7,deps,'2021-03-20','2021-04-18')
 
 dataconfinement = {'nom': 'confinement',
                    'titre': 'confinement/couvre-feu',
@@ -447,7 +472,10 @@ dataconfinement = {'nom': 'confinement',
                                    'confinement+commerces',
                                    'couvre-feu 21h-6h',
                                    'couvre-feu 20h-6h',
-                                   'couvre-feu 18h-6h'],
+                                   'couvre-feu 18h-6h',
+                                   'confinement we',
+                                   'confinement 20 mars 2021',
+                                   'couvre-feu 19h-6h'],
                    'valeurs': t}
 
 print('confinement/couvre-feu ok')
@@ -469,7 +497,7 @@ def sdep(d):
         dep = '0' + str(d)
     return(dep)
 
-j = str(now.tm_year) + '-' + str(now.tm_mon) + '-' + sdep(now.tm_mday)
+j = str(now.tm_year) + '-' + sdep(now.tm_mon) + '-' + sdep(now.tm_mday)
 
 s = chargejson('https://covid19-static.cdn-apple.com/covid19-mobility-data/current/v3/index.json',zip = False)
 basePath = s['basePath']
@@ -488,6 +516,7 @@ while data == None and j != '2020-11-01':
         data = chargecsv(url,zip = False,sep = ',')
         #print('data ok')
     except:
+        print(j)
         j = jour_de_num[num_de_jour(j)-1]
 
 jours = data[0][6:]
@@ -823,19 +852,202 @@ print('population chargée')
 
 ######################################################################
 # vaccination
-# https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-personnes-vaccinees-contre-la-covid-19/
+#https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-personnes-vaccinees-contre-la-covid-19-1/
+
+def get(data,x,champ):
+    try:
+        return(x[data[0].index(champ)])
+    except:
+        return(x[data[0].index('"' + champ + '"')].replace('"',''))
+      
+
+departements = ['0' + str(x) for x in range(1,10)] + [str(x) for x in range(10,96) if x != 20]
+
+# parfois le séparateur est la virgule!
+#nombre quotidien de personnes ayant reçu au moins une dose, par classes d’âge, et par date d’injection :
+csvages = chargecsv('https://www.data.gouv.fr/fr/datasets/r/83cbbdb9-23cb-455e-8231-69fc25d58111',
+                    zip = False,
+                    sep = ';')[:-1] # enlever le [''] de la fin
+# nombre quotidien de personnes ayant reçu au moins une dose, par date d’injection :
+csv = chargecsv('https://www.data.gouv.fr/fr/datasets/r/4f39ec91-80d7-4602-befb-4b522804c0af',
+                zip = False,
+                sep = ';')[:-1] # enlever le [''] de la fin
+#nombre quotidien de résidents en EHPAD ayant reçu au moins une dose ou deux doses, par date d’injection :
+csvehpad = chargecsv('https://www.data.gouv.fr/fr/datasets/r/54dcd1af-a4cd-47c6-a8a2-45d444529a68',
+                     zip = False,
+                     sep = ';')[:-1] # enlever le [''] de la fin
+
+print('csv chargés', flush = True)
+print(csv[0])
+
+jours = [j for j in range(num_de_jour('2020-02-01'),num_de_jour(aujourdhui)+1)]
+vac = np.zeros((len(departements),len(jours),2))
+for x in csv:
+    dep = get(csv,x,'dep')
+    if dep in departements:
+        d = departements.index(dep)
+        jj = get(csv,x,'jour')
+        #print(x,jj)
+        if jj[:4] in ['2020','2021']:
+            j = num_de_jour(jj) - jours[0]
+            v = get(csv,x,'n_dose1')
+            vac[d,j,0] = v
+
+for x in csvehpad:
+    dep = get(csvehpad,x,'dep')
+    if dep in departements:
+        d = departements.index(dep)
+        jj = get(csvehpad,x,'jour')
+        #print(x,jj)
+        if jj[:4] in ['2020','2021']:
+            j = num_de_jour(jj) - jours[0]
+            v1 = get(csvehpad,x,'res_vac_dose1')
+            v2 = get(csvehpad,x,'res_vac_dose2')
+            v1 = 0 if v1 == '' else int(v1)
+            v2 = 0 if v2 == '' else int(v2)
+            vac[d,j,1] = v1+v2
+
+#plt.plot(np.sum(vac[:,:,0],axis=0)[-60:]);plt.show()
+#plt.plot(np.sum(vac[:,:,1],axis=0)[-60:]);plt.show()
+
+datavaccins = {'nom': 'vaccins',
+               'titre': 'vaccins quotidien',
+               'dimensions': ['departements', 'jours','vaccins'],
+               'jours': [jour_de_num[j] for j in jours],
+               'departements': [int(d) for d in departements],
+               'vaccins' : ['vaccins','vaccins ehpad'],
+               'valeurs': vac}
+
+print('vaccins ok', jour_de_num[jours[-1]])
 ######################################################################
 # égoûts
 # https://www.data.gouv.fr/fr/datasets/reseau-de-collecte-des-eaux-usees/
 
 ######################################################################
+# variants
+#https://www.data.gouv.fr/fr/datasets/donnees-de-laboratoires-pour-le-depistage-indicateurs-sur-les-variants/#_
+
+departements = ['0' + str(x) for x in range(1,10)] + [str(x) for x in range(10,96) if x != 20]
+
+csv = chargecsv('https://www.data.gouv.fr/fr/datasets/r/16f4fd03-797f-4616-bca9-78ff212d06e8',
+                zip = False,
+                sep = ';')[:-1] # enlever le [''] de la fin
+
+print('csv variants chargé', flush = True)
+print(csv[0])
+
+jmax = num_de_jour('2020-02-01')
+for x in csv:
+    s = get(csv,x,'semaine')
+    j = s[11:]
+    if j[:4] in ['2020','2021']:
+        jmax = max(jmax,num_de_jour(j))
+
+jours = [j for j in range(num_de_jour('2020-02-01'),jmax+1)]
+var = np.zeros((len(departements),len(jours),1))
+
+'''
+Semaine = Semaine glissante
+cl_age90 = Classe d’âge
+Nb_tests_PCR_TA_crible = Nombre de tests PCR criblés parmi les PCR positives
+Prc_tests_PCR_TA_crible = % de tests PCR criblés parmi les PCR positives
+Nb_susp_501Y_V1 = Nombre de tests avec suspicion de variant 20I/501Y.V1 (UK)
+Prc_susp_501Y_V1 = % de tests avec suspicion de variant 20I/501Y.V1 (UK)
+Nb_susp_501Y_V2_3 = Nombre de tests avec suspicion de variant 20H/501Y.V2 (ZA) ou 20J/501Y.V3 (BR)
+Prc_susp_501Y_V2_3 = % de tests avec suspicion de variant 20H/501Y.V2 (ZA) ou 20J/501Y.V3 (BR)
+Nb_susp_IND = Nombre de tests avec une détection de variant mais non identifiable
+Prc_susp_IND = % de tests avec une détection de variant mais non identifiable
+Nb_susp_ABS = Nombre de tests avec une absence de détection de variant
+Prc_susp_ABS = % de tests avec une absence de détection de variant
+'''
+
+for x in csv:
+    dep = get(csv,x,'dep')
+    clage = get(csv,x,'cl_age90')
+    if dep in departements and clage == '0':
+        d = departements.index(dep)
+        s = get(csv,x,'semaine')
+        j1,j2 = s[:10],s[11:]
+        #print(j1,j2,x)
+        if j2[:4] in ['2020','2021']:
+            j2 = num_de_jour(j2) - jours[0]
+            var[d,j2,0] = 100 - float(get(csv,x,'Prc_susp_ABS'))
+
+#on complète car ca ne commence qu'au 18 février
+# point du 28 janvier
+enqueteflash_7_janvier = {'Alsace-Champagne-Ardenne-Lorraine': 1.2, #Grand Est
+                          'Aquitaine-Limousin-Poitou-Charentes': 1.7, #Nouvelle Aquitaine
+                          'Auvergne-Rhône-Alpes': 1.6,
+                          'Bourgogne-Franche-Comté': 0.2,
+                          'Bretagne': 0.8,
+                          'Centre-Val de Loire': 3.5,
+                          'Ile-de-France': 6.9,
+                          'Languedoc-Roussillon-Midi-Pyrénées': 2.9, #Occitanie
+                          'Nord-Pas-de-Calais-Picardie': 2.6, #Hautes de France
+                          'Normandie': 1.2,
+                          'Pays de la Loire': 1.3,
+                          "Provence-Alpes-Côte d'Azur": 4.8}
+#point du 11 février
+enqueteflash_27_janvier = {'Alsace-Champagne-Ardenne-Lorraine': 23.7, #Grand Est
+                           'Aquitaine-Limousin-Poitou-Charentes': 12, #Nouvelle Aquitaine
+                           'Auvergne-Rhône-Alpes': 14,
+                           'Bourgogne-Franche-Comté': 0.2, # on sait pas
+                           'Bretagne': 37.3,
+                           'Centre-Val de Loire': 28.7,
+                           'Ile-de-France': 22.2,
+                           'Languedoc-Roussillon-Midi-Pyrénées': 11.4, #Occitanie
+                           'Nord-Pas-de-Calais-Picardie': 11.8, #Hauts de France
+                           'Normandie': 12.4,
+                           'Pays de la Loire': 15.8,
+                           "Provence-Alpes-Côte d'Azur": 11.2}
+depvariant = {}
+for r in enqueteflash_7_janvier:
+    for d in regions[r]:
+        depvariant[d]={'2021-01-07': enqueteflash_7_janvier[r]}
+
+for r in enqueteflash_27_janvier:
+    for d in regions[r]:
+        depvariant[d]['2021-01-27'] = enqueteflash_27_janvier[r]
+
+departements = [int(d) for d in departements]
+
+def interpole(x,a,b,fa,fb):
+    return(fa + (fb-fa)/(b-a) * (x-a))
+
+for d,dep in enumerate(departements):
+    for jj in jours:
+        j = jj - jours[0]
+        if jj >= num_de_jour('2021-01-07') and jj < num_de_jour('2021-01-27'):
+            var[d,j,0] = interpole(jj,
+                                   num_de_jour('2021-01-07'),num_de_jour('2021-01-27'),
+                                   depvariant[dep]['2021-01-07'],depvariant[dep]['2021-01-27'])
+        if jj >= num_de_jour('2021-01-27') and jj < num_de_jour('2021-02-18'):
+            var[d,j,0] = interpole(jj,
+                                   num_de_jour('2021-01-27'),num_de_jour('2021-02-18'),
+                                   depvariant[dep]['2021-01-27'],
+                                   var[d,num_de_jour('2021-02-18')-jours[0],0])
+'''
+plt.plot(np.transpose(var[:,-100:,0]));plt.show()
+'''
+datavariants = {'nom': 'variants',
+               'titre': 'variants quotidien',
+               'dimensions': ['departements', 'jours','variants'],
+               'jours': [jour_de_num[j] for j in jours],
+                'departements': departements,
+               'variants' : ['variants'],
+               'valeurs': var}
+
+print('variants ok', jour_de_num[jours[-1]])
+
+######################################################################
 #
 contextes = [datamobilite, datameteo, datavacances, dataconfinement, dataapple, datahygiene,
              datagoogletrends, datagoogletrends_prev,
-             regions, datapauvrete,lchamps_pauvrete[:-2],datapop]
+             regions, datapauvrete,lchamps_pauvrete[:-2],datapop,
+             datavaccins, datavariants]
 
 import pickle
-f = open('contextes.pickle','wb')
+f = open(DIRCOVID19 + 'contextes.pickle','wb')
 pickle.dump(contextes,f)
 f.close()
 
