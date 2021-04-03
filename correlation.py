@@ -1,8 +1,3 @@
-# on prevoit la derivee d un indicateur  avec
-# les contextes,
-# les derivees des autres indicateurs et leurs valeurs
-# qui donnent les meilleures corrélations
-
 import sys
 from urlcache import *
 from outils import *
@@ -22,17 +17,7 @@ jdebut = '2020-02-24'
 erreurmax_pour_prevoir = 40  # en %
 utiliser_Reff_pour_prevoir = True
 erreurmaxReff = 5
-'''
-nombredelissage7 = 2
-mincorrelation = 0.3
-mindecalage = 1
-contextessanslissage = []
-declargeur = 0
-prolonger_contextes = True #False #True
-jdebut = '2020-02-24' 
-erreurmax_pour_prevoir = 40  # en %
-utiliser_Reff_pour_prevoir = False
-'''
+
 ######################################################################
 # chargement des donnees
 
@@ -63,16 +48,16 @@ if nouveau:
     efface_cache()
     print('cache effacé, on charge les dernières données disponibles')
     try:
-        import charge_contextes
-        print('contextes chargés')
+        import charge_indicateurs
+        print('indicateurs chargés')
         try:
-            import charge_indicateurs
-            print('indicateurs chargés')
+            import charge_contextes
+            print('contextes chargés')
         except:
-            print('*************************************probleme indicateurs')
+            print('*************************************probleme contexte')
             raise
     except:
-        print('*************************************probleme contexte')
+        print('*************************************probleme indicateurs')
         raise
 else:
     print('on utilise le cache')
@@ -102,12 +87,12 @@ contextes_non_temporels = [x[1] for x in lchamps_pauvrete] + ['population']
 
 # à normaliser avec la population des départements
 donnees_extensives_dep = ['vaccins', 'vaccins ehpad', 'urgences', 'hospitalisation urgences',
-                      'réanimations', 'nouv hospitalisations', 'nouv réanimations', 'nouv décès',
-                      'positifs', 'hospitalisations', 'hospi 0', 'hospi 09', 'hospi 19',
-                      'hospi 29', 'hospi 39', 'hospi 49', 'hospi 59', 'hospi 69', 'hospi 79',
-                      'hospi 89', 'hospi 90', 'positifs 09', 'positifs 19', 'positifs 29',
-                      'positifs 39', 'positifs 49', 'positifs 59', 'positifs 69', 'positifs 79',
-                      'positifs 89', 'positifs 90']
+                          'réanimations', 'nouv hospitalisations', 'nouv réanimations', 'nouv décès',
+                          'positifs', 'hospitalisations', 'hospi 0', 'hospi 09', 'hospi 19',
+                          'hospi 29', 'hospi 39', 'hospi 49', 'hospi 59', 'hospi 69', 'hospi 79',
+                          'hospi 89', 'hospi 90', 'positifs 09', 'positifs 19', 'positifs 29',
+                          'positifs 39', 'positifs 49', 'positifs 59', 'positifs 69', 'positifs 79',
+                          'positifs 89', 'positifs 90']
 ######################################################################
 # on ajoute des Reff
 
@@ -178,7 +163,7 @@ for t in ldata:
 
 # union des jours
 # la creation du memo de num_de_jour peut prendre un peu temps
-jfin = '2021-06-01'
+jfin = '2021-09-01'
 jours = set([jour_de_num[j] for j in range(num_de_jour(jdebut),num_de_jour(jfin)+1)])
 #jours = set([])
 for data in ldata:
@@ -568,6 +553,8 @@ def calcule_coefficients(y,M,MR,MRD,intervalle,coefs):
         erreurcoefs[0].append(e)
     if not prolonger_contextes or noms[y] in nomsind:
         print('erreur',("%2.3f" % e) + '% pour',noms[y],'dépendances:',len(ldepend))
+        #for x in ldepend:
+        #    print('\t', noms[x])
         if (noms[y] in nomsind and e < erreurmax_pour_prevoir
             and noms[y] not in indicateurs_pour_prevoir):
             indicateurs_pour_prevoir.append(noms[y])
@@ -856,17 +843,22 @@ def erreur_prevision(Mreel,MF,nom,passe = 2000):
 
 def trace_previsions(Mreel,MF,MRF,MRDF,
                      lnoms, passe = 200,futur = 60, deps = None, nomdeps = None, erreur = None):
+    correctionpop = 1
+    if deps == None:
+        correctionpop = population_france / sum([population_dep[d] for d in departements])
     lcourbes = []
-    print('previsions',','.join(lnoms), nomdeps)
+    print('previsions',','.join(lnoms), nomdeps, futur)
     for nom in lnoms:
         x = ni(nom)
         x0,x1 = intervalle[x]
         f = np.mean if nom not in donnees_extensives_dep else np.sum
         lcourbes += [(zipper(jourstext[int(x1)-passe:int(x1)],
-                             f(Mreel[x,:,int(x1)-passe:int(x1)], axis = 0)),
+                             [v*correctionpop
+                              for v in f(Mreel[x,:,int(x1)-passe:int(x1)], axis = 0)]),
                       '',real),
                      (zipper(jourstext[int(x1)-passe:int(x1)+futur],
-                             f(MF[x,:,int(x1)-passe:int(x1)+futur], axis = 0)),
+                             [v*correctionpop
+                              for v in f(MF[x,:,int(x1)-passe:int(x1)+futur], axis = 0)]),
                       nom,prev),
         ]
     fichier = '_prevision_' + '_'.join(lnoms) + ('' if deps == None else nomdeps)
@@ -874,7 +866,7 @@ def trace_previsions(Mreel,MF,MRF,MRDF,
           'prévisions ' + ' '.join(lnoms) 
           + ('' if deps == None else ' ' + nomdeps)
           + ' (' + jour_de_num[jours[0] + x1-1] + ')'
-          + ('' if erreur == None else ((" erreur moyenne: %2.1f" % erreur) + "%")),
+          + ('' if erreur == None or deps != None else ((" erreur moyenne: %2.1f" % erreur) + "%")),
           DIRSYNTHESE + fichier)
     return(fichier)
 
@@ -928,28 +920,10 @@ trace([(zipper(jourstext[x0:x1],np.sum(M[ni('urgences'),:,x0:x1],axis=0)),
 ######################################################################
 # graphiques des prévisions à 60 jours
 
-dureeprev = 60
-
 MT,MF,MRF,MRDF,jourdebut0 = prevoit_tout_deb_pres_fin(M,MR,MRD,intervalle,coefficients,coefs,
                                                           0,
                                                           jaujourdhui,
                                                           njours)
-
-
-
-
-'''
-plt.plot(np.sum(M[ni('réanimations'),:,:],axis=0))
-plt.plot(np.sum(MF[ni('réanimations'),:,:],axis=0))
-#plt.plot(np.sum(MT_1[ni('réanimations'),:,:],axis=0))
-plt.plot(np.sum(MF_1[ni('réanimations'),:,:],axis=0))
-#plt.plot(np.sum(MT_2[ni('réanimations'),:,:],axis=0))
-plt.plot(np.sum(MF_2[ni('réanimations'),:,:],axis=0))
-#plt.plot(np.sum(MT_3[ni('réanimations'),:,:],axis=0))
-plt.plot(np.sum(MF_3[ni('réanimations'),:,:],axis=0))
-plt.grid()
-plt.show()
-'''
 
 dureeprev = 60
 
@@ -962,6 +936,7 @@ for nom in [data['nom'] for data in ldataReff]:
     Ratracer.append((nom,errx))
 
 Ratracer = sorted(Ratracer,key = lambda x: x[1])
+print('R à tracer')
 print(Ratracer)
 iledefrance = regions['Ile-de-France']
 
@@ -1025,11 +1000,13 @@ if nouveauprev:
           fontcourbes = 6)
 ######################################################################
 # recherches google et variation des urgences
+indicateurrech= 'réanimations'
+
 if nouveauprev and touteslesdonnees:
-    decalage = int(coefs[ni('recherche voyage google'),ni('urgences')][0])
-    x0,x1 = intervalle[ni('urgences')][0]+30, jaujourdhui + 1
+    decalage = int(coefs[ni('recherche voyage google'),ni(indicateurrech)][0])
+    x0,x1 = intervalle[ni(indicateurrech)][0]+30, jaujourdhui + 1
     xrech = intervalle[ni('recherche horaires google')][1]
-    xurg = intervalle[ni('urgences')][1]
+    xurg = intervalle[ni(indicateurrech)][1]
     lv = np.mean([15 * (np.mean(M[ni(x),:,x0-decalage:xrech], axis = 0)
                         - np.mean(M[ni(x),:,x0-decalage:xrech]))
                   for x in ['recherche horaires google',
@@ -1041,10 +1018,10 @@ if nouveauprev and touteslesdonnees:
                    lv),
             'rech + ' + str(decalage) + ' jours','-'),
            (zipper(jourstext[x0:xurg],
-                   (np.sum(MRD[ni('urgences'),:,x0:xurg],axis = 0)
-                    -(np.mean(np.sum(MRD[ni('urgences'),:,x0:xurg],axis = 0))))),
+                   (np.sum(MRD[ni(indicateurrech),:,x0:xurg],axis = 0)
+                    -(np.mean(np.sum(MRD[ni(indicateurrech),:,x0:xurg],axis = 0))))),
             'variation des urgences','-')],
-          'recherche google voyage/itinéraire/horaire\n et variation des urgences',
+          'recherche google voyage/itinéraire/horaire\n et variation des ' + indicateurrech,
           DIRSYNTHESE + '_recherche google',
           xlabel = 'random'
     )
@@ -1146,8 +1123,10 @@ def courbes_prev_duree(lprev,x,duree = 60, passe = 100, dureefutur = 60, pas = 1
     normalise_data(M,intervalle)
     x0,x1 = intervalle[x]
     f = np.mean if noms[x] not in donnees_extensives_dep else np.sum
+    correctionpop = population_france / sum([population_dep[d] for d in departements])
     reel = zipper(jourstext[int(x1)-passe:int(x1)],
-                  f(Mreel[x,:,int(x1)-passe:int(x1)], axis = 0))
+                  [correctionpop * v
+                   for v in f(Mreel[x,:,int(x1)-passe:int(x1)], axis = 0)])
     lcourbes = []
     lC = []
     erreurs = dict([(j,[])
@@ -1189,7 +1168,7 @@ def courbes_prev_duree(lprev,x,duree = 60, passe = 100, dureefutur = 60, pas = 1
         if dp != []:
             p = p[:dp[0]]
             lj = lj[:dp[0]]
-        lcourbes.append(zipper(lj,p))
+        lcourbes.append(zipper(lj,[correctionpop * v for v in p]))
     return((reel,lcourbes,lC,erreurs,erreurslin,erreursquad))
 
 '''
@@ -1222,6 +1201,7 @@ def mmax(l):
 ######################################################################
 # moyennes des prévisions, ponderees (plus avenir, moins de poids)
 def prevision_moyenne(lprev,x):
+    correctionpop = population_france / sum([population_dep[d] for d in departements])
     v = np.zeros(njours)
     nv = np.zeros(njours)
     xdepmin = njours
@@ -1241,7 +1221,7 @@ def prevision_moyenne(lprev,x):
     erreur = (np.linalg.norm(v[xdepmin:jaujourdhui]
                              - f(M[x,:,xdepmin:jaujourdhui],axis=0))
               / np.linalg.norm(f(M[x,:,xdepmin:jaujourdhui],axis=0))) * 100
-    return(v,xdepmin,erreur)
+    return([correctionpop * x for x in v],xdepmin,erreur)
 
 #https://matplotlib.org/3.1.0/gallery/color/named_colors.html
 dureefuturanime = 90

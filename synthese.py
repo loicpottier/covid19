@@ -307,38 +307,34 @@ vspace = '<p> <br> <br></p>'*1 # ruse dégueue pour pas que la navbar se superpo
 
 f.write(vspace + '<div class="container-fluid">'
         + '<p>' + time.asctime(now) + '</p>'
-        + '<p>loic.pottier@gmail.com<a href="https://twitter.com/LocPottier1"><img src="https://help.twitter.com/content/dam/help-twitter/brand/logo.png" width = 50></a></p>')
+        + '<p>loic.pottier@gmail.com<a href="https://twitter.com/LocPottier1"><img src="https://help.twitter.com/content/dam/help-twitter/brand/logo.png" width = 50></a></p>'
+        )
 
-texte_intro = table2([['''<img src = "https://images-na.ssl-images-amazon.com/images/I/41SWU0l77iL._AC_.jpg" width = 300>''',
+texte_intro = table2([[#'''<img src = "https://images-na.ssl-images-amazon.com/images/I/41SWU0l77iL._AC_.jpg" width = 300>''',
                        '''
 <h4>Données et prévisions des indicateurs principaux de l'épidémie de covid19 en France</h4>
-<p>La méthode employée est mathématique.<br>
-                       Elle produit des prévisions pour le nombre de patients en réanimation avec une <a href="#erreursmoyennes">erreur moyenne</a> de 10% à 1 mois, 20% à 2 mois, et 30% à 3 mois. Pour les autres indicateurs de l'épidémie l'erreur est  de 15% à 20% jusqu'à 1 mois. </p>
-                       <p>Elle débute par le calcul de corrélations maximales entre les données des <em>indicateurs</em> de l'épidémie (hospitalisations, réanimations, nombre de cas, décès, etc)<br>
-                       et celles, décalées arbitrairement dans le temps, des données de son <em>contexte </em> (vacances, météo, mobilité des personnes, couvre-feu, etc),<br>
-pour chaque jour et chaque département.<br>
-On en déduit des décalages temporels entre contextes et indicateurs.<br>
-                       Puis, à partir de ces décalages, on calcule une approximation et une prévision linéaires par optimisation quadratique des taux de reproduction effectifs des indicateurs (R effectif, Reff, R0 ou R dans la littérature). Les approximations des indicateurs dont le taux de reproduction effectif est approximé avec une erreur moyenne supérieure à 5% sont rejetées.<br>
-                       Enfin, pour les autres, on déduit des approximations et des prévisions des indicateurs correspondants de l'épidémie.<br>
-                       Ceci est fait pour chaque département (pour les départements où les données complètes du jour sont présentes au moment du calcul, i.e. en général autour de 88).<br>
+<p>La méthode employée est mathématique, elle est décrite dans ce <a href=\"https://hal.archives-ouvertes.fr/hal-03183712"> preprint</a>.<br>
+                       Elle produit des prévisions pour le nombre de patients en réanimation avec une <a href="#erreursmoyennes">erreur moyenne</a> de 3% à 7 jours, 6% à 14 jours, 10% à 1 mois, 20% à 2 mois, et 30% à 3 mois.<br>
+Pour les autres indicateurs de l'épidémie l'erreur est inférieure à 20% jusqu'à 1 mois. </p>
                        On présente ici les résultats synthétisés pour la France, pour les Alpes-Maritimes et pour l'Ile de France.</p>
-On trouvera une <a href = \"#methode\">description détaillée</a> et une <a href = \"#evaluation\">évaluation sommaire</a> de la méthode ci-dessous.</p>
-<p>Les seules hypothèses qui sont faites sont que les données du contexte  gardent dans l'avenir les valeurs qu'elles ont au jour présent, sauf pour la météo, où l'on reprend les valeurs de l'année passée au même moment, et pour les vacances scolaires, qui sont prévues de longue date.</p>''']])
+On trouvera aussi <a href = \"#evaluation\">évaluation sommaire</a> de la méthode ci-dessous.</p>
+''']])
 
 f.write(texte_intro)
 
 
 texte_prevision = '''<h4>Prévisions</h4>
-<p>Courbe bleue: données réelles.<br>
-Courbe orange: approximation et prévision (des données lissées sur 7 jours).</p>
-<p>Les indicateurs sont rangés par erreur croissante sur leur Reff approximé par rapport aux Reff réels (les approximations sont calculées sur toute la période de l'épidémie).
-Les indicateurs avec des erreurs sur Reff >5% ne sont pas indiqués. Les indicateurs extensifs de l'épidémie sont cumulés sur les départements étudiés, les autres (taux de positifs), sont moyennés. Les Reff associés sont la moyenne des Reff des départements.</p>
+<p>Courbe en trait plein: données réelles.<br>
+Courbe en pointillé: approximation et prévision (des données lissées sur 7 jours).</p>
 '''
 
 f.write("<a id=\"previsions\"></a>" + texte_prevision)
 
-f.write("<p>On pourra se faire une idée de la précision de ces prévisions avec "
+f.write("<p>Les indicateurs sont rangés par erreur croissante sur leur taux de reproduction effectif Reff approximé par rapport aux Reff réels (les approximations sont calculées sur toute la période de l'épidémie).<br>"
+        + "Les données proviennent des départements métropolitains disponibles au moment des calculs (typiquement entre 85 et 90), et sont rapportées à la population de la métropole.<br>"
+        + "On pourra se faire une idée de la précision de ces prévisions avec "
         + '<a href="#previsionspassees">ces tracés.</a>'
+        + '<a href="#previsions3mois">et ceux-ci.</a>'
         + "</p>")
 
 def ecrit_previsions_region(atracerregion):
@@ -353,6 +349,8 @@ def ecrit_previsions_region(atracerregion):
     ))
 
 ecrit_previsions_region(atracerfrance)
+
+f.write("<p>Les indicateurs avec des erreurs sur Reff >5% ne sont pas indiqués. Les indicateurs extensifs de l'épidémie sont cumulés sur les départements étudiés, les autres (taux de positifs), sont moyennés. Les Reff associés sont la moyenne des Reff des départements.</p>")
 
 def dernierjour(x):
     return(jour_de_num[jours[0] + intervalle[ni(x)][1]-1])
@@ -400,45 +398,6 @@ voyage_google = '''<script type="text/javascript" src="https://ssl.gstatic.com/t
     trends.embed.renderExploreWidget("TIMESERIES", {"comparisonItem":[{"keyword":"voyage","geo":"FR","time":"today 12-m"}],"category":0,"property":""}, {"exploreQuery":"geo=FR&q=voyage&date=today 12-m","guestPath":"https://trends.google.fr:443/trends/embed/"});
   </script>'''
 
-f.write('<a id="methode">'
-        + vspace + '</a><h3>Méthode</h3><br>'
-        + table0([[
-            "<p><h5>Prévisions</h5>"
-            + "Les données concernent les indicateurs de l'épidémie (urgences, réanimations, décès, tests positifs, etc) et les contextes (données météo: température, pression, données de mobilité fournies par google: fréquentation des commerces et lieux de loisir, des lieux de travail, etc).<br>"
-            + "Elles se présentent comme un tableau à 3 dimensions: une pour les noms des données, une pour les départements français, une pour les jours. Par exemple, on dispose du nombre de passage aux urgences hospitalières, du nombre de patients en réanimation, etc, pour soupçon de covid chaque jour depuis avril 2020, pour chaque département.<br>"
-            + "En tout on utilise "
-            + str(nnoms) + " jeux de données, qui concernent "
-            + str(ndeps) + " départements et "
-            + str(njours) + " jours.<br>"
-            + "On commence par calculer les coefficients de corrélation entre deux jeux de données, pour tous les décalages temporels d'au plus 40 jours. Et on retient le décalage qui maximise la valeur absolue du coefficient de corrélation entre deux données, si celle-ci est supérieure à "
-            + ("%1.2f" % mincorrelation) + ": par exemple, ce coefficient de corrélation est maximal entre le travail et les urgences si on décale les urgences "
-            + str(int(coefs[ni('travail'),ni('urgences')][0]))
-            +  " jours dans le passé.<br>"
-            +  "Cela suggère une causalité possible: une hausse de la fréquentation des lieux de travail peut provoquer une hausse des urgences pour covid "
-            + str(int(coefs[ni('travail'),ni('urgences')][0]))
-            +  " jours plus tard.<br>"
-            + "A présent on dispose de décalages de jours entre certaines des données. On dira qu'une donnée \(d\) dépend d'une donnée \(d'\) si on a obtenu, à l'étape précédente, un décalage \(\Delta_{d' d} > 0\) de \(d'\) à \(d\).<br>"
-            + "On considère alors qu'une donnée \(d\) sur une période de temps \([j_0,j_1]\) va dépendre des valeurs des donnéees \(d_i\) dont elle dépend sur les périodes \([j_0 - \Delta_{d' d_i},j_1 - \Delta_{d' d_i}]\).<br>"
-            + "Fixons un dépatement. Appelons \(A\) la matrice dont la colonne \(i\) est formée des valeurs de \(d_i\) dans ce département sur la période \([j_0 - \Delta_{d' d},j_1 - \Delta_{d' d}]\), et \(B\) le vecteur colonne formé des valeurs de \(d\) dans ce département sur la période \([j_0,j_1]\).<br>",
-            "On aimerait trouver une famille de coefficients \(C = (c_i)\) telle que \(AC = B\). Mais il n'y a pas en général de solution à cette équation, car \(A\) a plus de lignes (les jours) que de colonnes (les données). On cherche alors à minimiser \(||AC-B||\). C'est un problème quadratique convexe, dont la solution s'obtient simplement avec \[C = (^tAA)^{-1}(^tAB)\] (si \(^tAA\) est inversible, ce qui est le cas en pratique).<br>"
-            + "Avec \(C\) on peut prévoir une valeur pour la donnée \(d\) le jour \(j_1+1\), simplement en calculant \(A_1C\), où \(A_1\) est obtenue comme \(A\) mais avec les intervalles \([j_0 - \Delta_{d' d}+1,j_1 - \Delta_{d' d}+1]\). Et ainsi de suite.<br>"
-            + "On prévoit alors toutes les données d'un jour en parallèle, puis le suivant, etc. Si une donnée n'est pas prévisible (car pas de dépendance, ou  \(^tAA\) non  inversible), on garde sa valeur précédente.<br>"
-            + "On fait cela pour chaque département.<br>"
-            + "Évidemment, si une prévision dépend de données déjà obtenues par prévision, on imagine bien qu'elle est moins fiable.</p>"
-            + "<p><h5>Important</h5>"
-            + "D'une part, dans les calculs de corrélation, les données qui concernent les indicateurs de l'épidémie sont utilisées sous la forme de leur dérivée discrète \(d(j+1)-d(j)\). Comme ce sont déjà des valeurs par jour, donc des dérivées, on obtient alors la dérivée seconde des données cumulées. On calcule alors des corrélations entre les données de contexte, que l'on peut voir comme des forces, et les dérivées secondes des indicateurs absolus de l'épidémie.<br>"
-            + "Cette analogie linéaire entre force et accélération empruntée à la physique newtonienne s'avère féconde: en effet les corrélations sont négligeables si on ne considère pas les dérivées discrètes des indicateurs journaliers, alors qu'au contraire elles apparaissent avec celles-ci.<br>"
-            + "D'autre part, pour prévoir les indicateurs de l'épidémie on commence par prévoir le taux de reproduction associé (voir plus loin), puis on en déduit les valeurs prévues des données."
-            + "</p>"],
-        ["<hr>","<hr>"],
-        ['''<p><h5>Calcul du taux de reproduction effectif \(R_{\\rm eff}\)</h5>
-Le taux de reproduction R est le nombre moyen de personnes que contamine un malade (en dessous de 1, l'épidémie régresse). Il est difficile de le déterminer, car il change chaque jour, et on ne connaît pas tous les malades et qui les contamine.<br> Pour l'approcher, on déterminera pour chaque indicateur de l'épidémie un taux de reproduction effectif \(R_{\\rm eff}\), en utilisant un intervalle sériel estimé à \(s = 4,11\) (c'est le nombre moyen de jours entre deux contaminations successives dans une chaîne de contamination).<br>
-Si l'indicateur de l'épidémie choisi est donné chaque jour par une fonction \(f\), alors son \(R_{\\rm eff}\) vérifie: \[R_{\\rm eff} = e^{s \\frac {f'} f}\]  de sorte que \(f(x+s) = R_{\\rm eff} f(x)\). 
-On obtient cette expression simplement en considérant \(f\) comme localement exponentielle.<br>
-Notons que la dérivée discrète est en pratique calculée sur les valeurs lissées 2 fois sur 7 jours.</p>''',
-         ""]]))
-
-
 f.write("<a id=\"correlations\"></a>"
         + vspace + '<h3>Corrélations</h3>'
         "<p>Attention: corrélation ne veut pas dire causalité, mais bon, cela peut donner des idées.</p>")
@@ -468,7 +427,7 @@ f.write(vspace + "<h4>Comparaisons avec d'autres méthodes simples.</h4>"
         + "<p>On compare les prévisions avec une prévision linéaire par la tangente, et une prévision par approximation à l'ordre 2<br>"
         + "Les prévisions à partir du jour \(j\) n'utilisent que les données antérieures au jour \(j\), mais avec les coefficients de prévisions calculés sur l'ensemble des données jusqu'à aujourd'hui.<br>"
         + "Les méthodes simples donnent toujours de erreurs supérieures, et dépassent 50% d'erreur après 40 jours "
-        + '<a href="#methode">(détails ici)</a>.<br>'
+        + '<a href="#erreurs">(détails ici)</a>.<br>'
         + "Voici les erreurs de notre méthode:</br>")
 
 f.write(table2([[imagew('_erreurs_moyennes.png',40)]]))
@@ -478,7 +437,7 @@ f.write("<a id=\"previsionspassees\"></a>"
         + "<h4>Prévisions passées depuis 6 semaines.</h4>"
         + "<p>Pour avoir une idée de la pertinence des prévisions précédentes, on calcule les prévisions obtenues à partir du passé, comparées à la réalité:</p>"
         +"<p>Courbe bleue: données réelles.<br>"
-        + "Courbe pointillées: données approximées puis prévues à partir du jour \(j\) "
+        + "Courbes en pointillés: données approximées puis prévues à partir du jour \(j\) "
         + "en utilisant uniquement les données des jours précédant \( j\).</p>"
         + table2([[tabs([('réanimations',image('_réanimations_prev_passees.png'))]),
                    tabs([(nom[1:],image('_' + nom[1:] + '_prev_passees.png'))
@@ -538,8 +497,7 @@ f.write(fin1)
 f.close()
 
 os.system('scp _synthese.html lpmib@ssh-lpmib.alwaysdata.net:testdjango2/testdjango2/medias/covid19/_synthese.html')
-os.system('tar -cvf groba.tgz ' + DIRSYNTHESE + '/*.png ' + DIRSYNTHESE + '/*.mp4')
-
+os.system('tar -cvf groba.tgz ' + DIRSYNTHESE + '/*.png ' + DIRSYNTHESE + '/*.mp4 ' + DIRSYNTHESE + '/*.pdf')
 os.system('scp groba.tgz lpmib@ssh-lpmib.alwaysdata.net:testdjango2/testdjango2/medias/covid19')
 os.system("ssh lpmib@ssh-lpmib.alwaysdata.net 'cd testdjango2/testdjango2/medias/covid19 && tar -xvf groba.tgz'")
 

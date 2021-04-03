@@ -13,6 +13,68 @@ departements = ['0' + str(x) for x in range(1,10)] + [str(x) for x in range(10,9
 # https://www.data.gouv.fr/fr/pages/donnees-coronavirus
 # indicateurs covid
 ######################################################################
+# hospitalieres
+'''
+dep	integer	Département	1
+sexe	integer	Sexe 	0
+jour	string($date)	Date de notification
+hosp	integer	Nombre de personnes actuellement hospitalisées
+rea	integer	Nombre de personnes actuellement en réanimation ou soins intensifs
+rad	integer	Nombre cumulé de personnes retournées à domicile
+dc	integer	Nombre cumulé de personnes décédées à l'hôpital
+'''
+jours = ['2020-01-01']
+recharge = False
+    
+#while jours[-1] != aujourdhui:
+if True:
+    if recharge:
+        print('dernières données: ' + jours[-1] + ', on attend et on recommence...')
+        time.sleep(5*60)
+    efface_cache()
+    csv = chargecsv('https://www.data.gouv.fr/fr/datasets/r/63352e38-d353-4b54-bfd1-f1b3ee1cabd7',
+                      zip = False,
+                      sep = ';')
+    td = dict([(x,[]) for x in departements])
+    for x in csv:
+        dep = get(csv,x,'dep')
+        if dep in departements and get(csv,x,'sexe') == '0':
+            lv = [get(csv,x,c)
+                  for c in ['jour',
+                            'hosp',
+                            'rea',
+                            'dc']]
+            td[dep].append(lv)
+    maxjours = max([len(td[x]) for x in td])
+    td = dict([(x,td[x]) for x in td
+               if len(td[x]) == maxjours and len([y for y in td[x] if '' in y]) == 0])
+    jours = [x[0] for x in td[list(td)[0]]]
+    recharge = True
+
+deps = sorted([x for x in td])
+
+datareatot = {'nom': 'réanimations',
+            'titre': 'réanimation',
+            'dimensions': ['departements', 'jours'],
+            'jours': jours,
+            'departements': [int(d) for d in deps],
+            'valeurs': np.array([[mfloat(x[2]) for x in td[dep]] for dep in deps])}
+datahospitot = {'nom': 'hospitalisations',
+            'titre': 'hospitalisations',
+            'dimensions': ['departements', 'jours'],
+            'jours': jours,
+            'departements': [int(d) for d in deps],
+            'valeurs': np.array([[mfloat(x[1]) for x in td[dep]] for dep in deps])}
+datadecestot = {'nom': 'décès',
+            'titre': 'décès',
+            'dimensions': ['departements', 'jours'],
+            'jours': jours,
+            'departements': [int(d) for d in deps],
+            'valeurs': np.array([[mfloat(x[3]) for x in td[dep]] for dep in deps])}
+
+print('hospitot ok', jours[-1])
+
+######################################################################
 # urgences quotidien
 '''
 dep	integer	Departement
@@ -80,58 +142,6 @@ datasosmedecin = {'nom': 'sosmedecin',
 '''
 #print('urge, hospiurge, sosmedecin ok', jours[-1])
 print('urge, hospiurge ok', jours[-1])
-######################################################################
-# hospitalieres
-'''
-dep	integer	Département	1
-sexe	integer	Sexe 	0
-jour	string($date)	Date de notification
-hosp	integer	Nombre de personnes actuellement hospitalisées
-rea	integer	Nombre de personnes actuellement en réanimation ou soins intensifs
-rad	integer	Nombre cumulé de personnes retournées à domicile
-dc	integer	Nombre cumulé de personnes décédées à l'hôpital
-'''
-csv = chargecsv('https://www.data.gouv.fr/fr/datasets/r/63352e38-d353-4b54-bfd1-f1b3ee1cabd7',
-                      zip = False,
-                      sep = ';')
-
-td = dict([(x,[]) for x in departements])
-for x in csv:
-    dep = get(csv,x,'dep')
-    if dep in departements and get(csv,x,'sexe') == '0':
-        lv = [get(csv,x,c)
-              for c in ['jour',
-                        'hosp',
-                        'rea',
-                        'dc']]
-        td[dep].append(lv)
-
-maxjours = max([len(td[x]) for x in td])
-td = dict([(x,td[x]) for x in td
-           if len(td[x]) == maxjours and len([y for y in td[x] if '' in y]) == 0])
-jours = [x[0] for x in td[list(td)[0]]] 
-deps = sorted([x for x in td])
-
-datareatot = {'nom': 'réanimations',
-            'titre': 'réanimation',
-            'dimensions': ['departements', 'jours'],
-            'jours': jours,
-            'departements': [int(d) for d in deps],
-            'valeurs': np.array([[mfloat(x[2]) for x in td[dep]] for dep in deps])}
-datahospitot = {'nom': 'hospitalisations',
-            'titre': 'hospitalisations',
-            'dimensions': ['departements', 'jours'],
-            'jours': jours,
-            'departements': [int(d) for d in deps],
-            'valeurs': np.array([[mfloat(x[1]) for x in td[dep]] for dep in deps])}
-datadecestot = {'nom': 'décès',
-            'titre': 'décès',
-            'dimensions': ['departements', 'jours'],
-            'jours': jours,
-            'departements': [int(d) for d in deps],
-            'valeurs': np.array([[mfloat(x[3]) for x in td[dep]] for dep in deps])}
-
-print('hospitot ok', jours[-1])
 
 ######################################################################
 # hospitalieres quotidien

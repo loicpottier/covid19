@@ -12,13 +12,18 @@ for s in range(42): # prevision il y a 6 semaines
                                                                   recalculecoeffficients = True)
     Mp.append(MF_1)
 
+correctionpop = population_france / sum([population_dep[d] for d in departements])
+
 for x in lnomspasR:
     x0,x1 = intervalle[ni(x)]
     trace([(zipper(jourstext[x1-s:x1-s+dureeprev],
-                   np.sum(Mp[s][ni(x),:,x1-s:x1-s+dureeprev],axis=0)),
+                   [correctionpop * v
+                    for v in np.sum(Mp[s][ni(x),:,x1-s:x1-s+dureeprev],axis=0)]),
             (str(s) if s%7 == 0 else ''),prev)
            for s in range(42)]
-          + [(zipper(jourstext[x1-100:x1],np.sum(M[ni(x),:,x1-100:x1],axis=0)),
+          + [(zipper(jourstext[x1-100:x1],
+                     [correctionpop * v
+                      for v in np.sum(M[ni(x),:,x1-100:x1],axis=0)]),
             '',real)],
           x + ": prévisions à 2 mois, depuis 42 jours.",
           DIRSYNTHESE + '_' + x + '_prev_passees',close = True)
