@@ -10,7 +10,7 @@ le code est dans les fichiers:
 - synthese.py
 - evaluation.py
 
-un jour je le passerai sous pandas.
+un jour je le passerai sous pandas (et je le nettoierai, aussi).
 
 ainsi que
 
