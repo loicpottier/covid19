@@ -9,7 +9,8 @@ le code est dans les fichiers:
 - correlation.py
 - synthese.py
 - evaluation.py
-
+- ajour: lance la mise à jour quotidienne
+- 
 un jour je le passerai sous pandas (et je le nettoierai, aussi).
 
 ainsi que
