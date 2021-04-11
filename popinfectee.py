@@ -10,6 +10,7 @@ dataurge, datahospiurge, datareatot, datahospitot, datahospi, datarea, datadeces
 
 ######################################################################
 # https://modelisation-covid19.pasteur.fr/realtime-analysis/infected-population/
+# https://www.thelancet.com/journals/lanpub/article/PIIS2468-2667(21)00064-5/fulltext
 # https://doi.org/10.1101/2020.09.16.20195693
 # entre le 4 mai et le 23 juin
 
@@ -76,7 +77,9 @@ ldep = (regions['Ile-de-France']
 
 poptot = sum([population_dep[d] for d in ldep])
 
-j0 = num_de_jour('2020-05-04') - num_de_jour(datahospiage['09']['jours'][0])
+# d'après le papier
+# https://www.thelancet.com/journals/lanpub/article/PIIS2468-2667(21)00064-5/fulltext
+j0 = num_de_jour('2020-05-06') - num_de_jour(datahospiage['09']['jours'][0])
 
 # cumul hospitalises dans les departements ldep, tranche d'age a, jusqu'au jour j 
 def hospi(ldep,a,j):
@@ -159,6 +162,7 @@ def pinf_agef_jour(a,j):
 # extrapolations au 10 avril (le jour où j'ai écrit le code)
 
 jj1 = aujourdhui
+#jj1 = '2021-03-23' papier Cauchemez
 j1 = num_de_jour(jj1) - num_de_jour(datahospiage['09']['jours'][0])
 
 pinf_jour(j1)
