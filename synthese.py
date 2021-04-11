@@ -290,10 +290,11 @@ f.write('''
   <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
     <div class="navbar-nav">
       <a class="nav-item nav-link active" href="#previsions">Données et prévisions</a>
+      <a class="nav-item nav-link active" href="#infectees">Infectées</a>
+      <a class="nav-item nav-link" href="#confines20mars">Confin.20mars</a>
+      <a class="nav-item nav-link" href="#regions">Régions</a>
       <a class="nav-item nav-link" href="#alpesmaritimes">06</a>
-      <a class="nav-item nav-link" href="#iledefrance">IDF</a>
       <a class="nav-item nav-link" href="#previsions3mois">Prévisions depuis 8 mois<span class="sr-only">(current)</span></a>
-      <a class="nav-item nav-link" href="#methode">Méthode</a>
       <a class="nav-item nav-link" href="#correlations">Corrélations et décalages</a>
       <a class="nav-item nav-link" href="#coefficients">Coefficients d'optimisation</a>
       <a class="nav-item nav-link" href="#evaluation">Évaluation</a>
@@ -310,37 +311,18 @@ f.write(vspace + '<div class="container-fluid">'
         + '<p>loic.pottier@gmail.com<a href="https://twitter.com/LocPottier1"><img src="https://help.twitter.com/content/dam/help-twitter/brand/logo.png" width = 50></a></p>'
         )
 
-texte_intro = table2([[#'''<img src = "https://images-na.ssl-images-amazon.com/images/I/41SWU0l77iL._AC_.jpg" width = 300>''',
+f.write(table2([[#'''<img src = "https://images-na.ssl-images-amazon.com/images/I/41SWU0l77iL._AC_.jpg" width = 300>''',
                        '''
 <h4>Données et prévisions des indicateurs principaux de l'épidémie de covid19 en France</h4>
 <p>La méthode employée est mathématique, elle est décrite dans ce <a href=\"https://hal.archives-ouvertes.fr/hal-03183712"> preprint</a>.<br>
-                       Elle produit des prévisions pour le nombre de patients en réanimation avec une <a href="#erreursmoyennes">erreur moyenne</a> de 3% à 7 jours, 6% à 14 jours, 10% à 1 mois, 20% à 2 mois, et 30% à 3 mois.<br>
-Pour les autres indicateurs de l'épidémie l'erreur est inférieure à 20% jusqu'à 1 mois. </p>
-                       On présente ici les résultats synthétisés pour la France, pour les Alpes-Maritimes et pour l'Ile de France.</p>
-On trouvera aussi <a href = \"#evaluation\">évaluation sommaire</a> de la méthode ci-dessous.</p>
-''']])
-
-f.write(texte_intro)
-
-
-texte_prevision = '''<h4>Prévisions</h4>
-<p>Courbe en trait plein: données réelles.<br>
-Courbe en pointillé: approximation et prévision (des données lissées sur 7 jours).</p>
-'''
-
-f.write("<a id=\"previsions\"></a>" + texte_prevision)
-
-f.write("<p>Les indicateurs sont rangés par erreur croissante sur leur taux de reproduction effectif Reff approximé par rapport aux Reff réels (les approximations sont calculées sur toute la période de l'épidémie).<br>"
-        + "Les données proviennent des départements métropolitains disponibles au moment des calculs (typiquement entre 85 et 90), et sont rapportées à la population de la métropole.<br>"
-        + "On pourra se faire une idée de la précision de ces prévisions avec "
-        + '<a href="#previsionspassees">ces tracés.</a>'
-        + '<a href="#previsions3mois">et ceux-ci.</a>'
-        + "</p>")
+Elle produit des prévisions pour le nombre de patients en réanimation avec une <a href="#erreursmoyennes">erreur moyenne</a> inférieure à 3% à 7 jours, 6% à 14 jours, 10% à 1 mois, 20% à 2 mois, et 30% à 3 mois.<br>
+Pour les autres indicateurs de l'épidémie l'erreur est inférieure à 20% jusqu'à 1 mois.
+''']]))
 
 def ecrit_previsions_region(atracerregion):
     atracer,fichiersR,fichiers = atracerregion
-    f.write(table2([["<h5>Indicateurs</h5>",
-                     "<h5>Reff</h5>"], 
+    f.write(table2([["<h5>Indicateurs de l'épidémie de covid19</h5>",
+                     "<h5>Taux de reproduction effectif (Reff)</h5>"], 
                     [tabs([(nom[1:],image(fichiers[k] + '.png'))
                            for (k,(nom,err)) in enumerate(atracer)]),
                      tabs([(nom,image(fichiersR[k] + '.png'))
@@ -348,10 +330,36 @@ def ecrit_previsions_region(atracerregion):
                     ]]
     ))
 
+atracerfrance,atracer06,atracerconfines20mars = [x[1] for x in atracerregions[:3]]
+
 ecrit_previsions_region(atracerfrance)
 
-f.write("<p>Les indicateurs avec des erreurs sur Reff >5% ne sont pas indiqués. Les indicateurs extensifs de l'épidémie sont cumulés sur les départements étudiés, les autres (taux de positifs), sont moyennés. Les Reff associés sont la moyenne des Reff des départements.</p>")
+f.write('''<a id=\"previsions\"></a> 
+<p>Courbe en trait plein: données réelles.<br>
+Courbe en pointillé: approximation et prévision (des données lissées sur 7 jours).</p>
+<p>Les indicateurs sont rangés par erreur croissante sur leur taux de reproduction effectif Reff approximé par rapport aux Reff réels (les approximations sont calculées sur toute la période de l'épidémie).<br>
+Les données proviennent des départements métropolitains disponibles au moment des calculs (typiquement entre 85 et 90), et sont rapportées à la population de la métropole.<br>'''
+        + "On pourra se faire une idée de la précision de ces prévisions avec "
+        + '<a href="#previsions3mois">ces tracés, </a>'
+        + '<a href="#previsionspassees">et ceux-ci.</a>'
+        + "</p>")
 
+f.write('''<p>Les indicateurs avec des erreurs sur Reff >5% ne sont pas indiqués. Les indicateurs extensifs de l'épidémie sont cumulés sur les départements étudiés, les autres (taux de positifs), sont moyennés. Les Reff associés sont la moyenne des Reff des départements.</br>
+On présente ici les résultats pour la France, pour les Alpes-Maritimes et pour l'Ile de France.<br> 
+On trouvera <a href = \"#evaluation\">évaluation sommaire</a> de la méthode ci-dessous.</p>''')
+
+######################################################################
+# infectes
+f.write("<a id=\"infectees\"></a>"
+        + vspace +
+        '<h4>Proportion de personnes infectées</h4>'
+        + "Suivant l'idée développée par l'équipe de Simon Cauchemez (<a href=\"https://modelisation-covid19.pasteur.fr/realtime-analysis/infected-population/\">voir ici</a>), on peut extrapoler à partir des <a href=\"https://www.medrxiv.org/content/10.1101/2020.09.16.20195693v1\">données de sérologie</a> les proportions de personnes infectées par région et/ou par tranche d'âge depuis mai 2020. L'idée est de supposer que dans une tranche d'âge, les hospitalisations sont proportionnelles aux infections, indépendemment de la région.")
+
+f.write(table2([[tabs([('France',image('infectes_france.png')),
+                       ('régions',image('infectes_regions.png'))]),
+                 tabs([("tranches d'âges",image('infectes_ages.png'))])]]))
+
+######################################################################
 def dernierjour(x):
     return(jour_de_num[jours[0] + intervalle[ni(x)][1]-1])
 
@@ -469,18 +477,26 @@ if inclusconfinement:
              '_heat_correlation_confinement_indicateur',
              dim = (10,4))
 
+print('heatmaps finies')
+
 ######################################################################
 f.write('<a id="alpesmaritimes"></a>'
         + vspace + "<h3>Dans les Alpes-Maritimes</h3>")
-
 ecrit_previsions_region(atracer06)
 
 ######################################################################
-f.write('<a id="iledefrance"></a>'
-        + vspace + "<h3>En Ile de France</h3>")
+f.write('<a id="confines20mars"></a>'
+        + vspace + "<h3>Départements confinés le 20 mars</h3>")
 
-ecrit_previsions_region(atraceriledefrance)
+ecrit_previsions_region(atracerconfines20mars)
+######################################################################
+f.write('<a id="regions"></a>'
+        + vspace + "<h3>Les régions</h3>")
+for (x,a) in sorted(atracerregions[3:],key = lambda x:x[0]):
+    f.write("<h4>" + x + "</h4>")
+    ecrit_previsions_region(a)
 
+print('previsions regions finies')
 ######################################################################
 f.write("<a id=\"transmission\"></a>"
         + vspace + "<h4>Transmission entre classe d'âges</h4>"
