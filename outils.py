@@ -136,10 +136,12 @@ def joli(jour):
 def axejours(ax,lj):
     n = len(lj)
     lk = [n-1 - 7*k for k in range(n//7+1)][::-1]
+    if lk[0] < 0:
+        lk = [0] + lk[1:]
     #print(lk)
     ljaxe = [joli(lj[k]) for k in lk]
+    #print(ljaxe)
     plt.xticks(lk,ljaxe,rotation = 70,fontsize = 6)
-    
     #plt.xticks(np.arange(0, 1, step=0.2))
 
 def val(jours,l):

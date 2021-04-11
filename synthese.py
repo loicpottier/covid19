@@ -290,7 +290,7 @@ f.write('''
   <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
     <div class="navbar-nav">
       <a class="nav-item nav-link active" href="#previsions">Données et prévisions</a>
-      <a class="nav-item nav-link active" href="#infectees">Infectées</a>
+      <a class="nav-item nav-link active" href="#infectees">Population infectée</a>
       <a class="nav-item nav-link" href="#confines20mars">Confin.20mars</a>
       <a class="nav-item nav-link" href="#regions">Régions</a>
       <a class="nav-item nav-link" href="#alpesmaritimes">06</a>
@@ -352,8 +352,8 @@ On trouvera <a href = \"#evaluation\">évaluation sommaire</a> de la méthode ci
 # infectes
 f.write("<a id=\"infectees\"></a>"
         + vspace +
-        '<h4>Proportion de personnes infectées</h4>'
-        + "Suivant l'idée développée par l'équipe de Simon Cauchemez (<a href=\"https://modelisation-covid19.pasteur.fr/realtime-analysis/infected-population/\">voir ici</a>), on peut extrapoler à partir des <a href=\"https://www.medrxiv.org/content/10.1101/2020.09.16.20195693v1\">données de sérologie</a> les proportions de personnes infectées par région et/ou par tranche d'âge depuis mai 2020. L'idée est de supposer que dans une tranche d'âge, les hospitalisations sont proportionnelles aux infections, indépendemment de la région.")
+        '<h4>Proportion de la population infectées</h4>'
+        + "Suivant l'idée développée par l'équipe de Simon Cauchemez (<a href=\"https://modelisation-covid19.pasteur.fr/realtime-analysis/infected-population/\">voir ici</a>), on peut extrapoler à partir des <a href=\"https://www.medrxiv.org/content/10.1101/2020.09.16.20195693v1\">données de sérologie</a> les proportions de la population infectées par région et/ou par tranche d'âge depuis mai 2020. L'idée est de supposer que dans une tranche d'âge, les hospitalisations sont proportionnelles aux infections, indépendemment de la région. Il s'agit principalement de faire des règles de 3 sur les données (même si on peut voir cela comme des probabilités conditionnelles pour y comprendre quelque chose). Le code python est <a href=\"https://github.com/loicpottier/covid19/blob/master/popinfectee.py\">ici</a>.")
 
 f.write(table2([[tabs([('France',image('infectes_france.png')),
                        ('régions',image('infectes_regions.png'))]),

@@ -176,17 +176,22 @@ print("par tranche d'âges:")
 for a in ages:
     print(a + ":",("%.1f" % (100*pinf_agef_jour(a,j1))) + '%')
 
+print("----------------------------------------------------------------------")
+print("France:",("%.1f" % (100*pinf_france_jour(j1))) + '%')
+
 ######################################################################
 # graphiques
 
+jourspop = [j for j in range(j1,j0-1,-7)][::-1]
+    
 lr = {}
 for r in regions:
     print(r)
     lr[r] = [pinf_regions_jour([r],j)
-             for j in range(j0,j1+1,7)]
+             for j in jourspop]
 
 trace([(zipper([jour_de_num[num_de_jour(datahospiage['09']['jours'][0]) + j]
-                for j in range(j0,j1+1,7)],
+                for j in jourspop],
                [100*x for x in lr[r]]),
         r,'-')
        for r in regions],
@@ -197,10 +202,10 @@ la = {}
 for a in ages:
     print(a)
     la[a] = [pinf_agef_jour(a,j)
-             for j in range(j0,j1+1,7)]
+             for j in jourspop]
 
 trace([(zipper([jour_de_num[num_de_jour(datahospiage['09']['jours'][0]) + j]
-                for j in range(j0,j1+1,7)],
+                for j in jourspop],
                [100*x for x in la[a]]),
         a,'-')
        for a in ages],
@@ -208,8 +213,8 @@ trace([(zipper([jour_de_num[num_de_jour(datahospiage['09']['jours'][0]) + j]
       DIRSYNTHESE + "infectes_ages")               
     
 trace([(zipper([jour_de_num[num_de_jour(datahospiage['09']['jours'][0]) + j]
-                for j in range(j0,j1+1,7)],
-               [100*pinf_france_jour(j) for j in range(j0,j1+1,7)]),
+                for j in jourspop],
+               [100*pinf_france_jour(j) for j in jourspop]),
         'France','-')],
       "proportion de personnes infectées par le SARS-CoV-2 en France (en %)",
       DIRSYNTHESE + "infectes_france")               
