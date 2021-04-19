@@ -7,9 +7,10 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 from matplotlib import colors
 
 now = time.localtime(time.time())
+
 ######################################################################
 # page de synthèse
-# mets la synthèse sur cp.lpmib.fr:
+# upload la synthèse sur cp.lpmib.fr:
 # https://cp.lpmib.fr/medias/covid19/_synthese.html
 ######################################################################
 
@@ -290,14 +291,15 @@ f.write('''
   <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
     <div class="navbar-nav">
       <a class="nav-item nav-link active" href="#previsions">Données et prévisions</a>
-      <a class="nav-item nav-link active" href="#infectees">Population infectée</a>
+      <a class="nav-item nav-link" href="#infectees">Population infectée</a>
       <a class="nav-item nav-link" href="#confines20mars">Confin.20mars</a>
       <a class="nav-item nav-link" href="#regions">Régions</a>
       <a class="nav-item nav-link" href="#alpesmaritimes">06</a>
-      <a class="nav-item nav-link" href="#previsions3mois">Prévisions depuis 8 mois<span class="sr-only">(current)</span></a>
+      <a class="nav-item nav-link" href="#indicateurscontextes">Données</a>
       <a class="nav-item nav-link" href="#correlations">Corrélations et décalages</a>
-      <a class="nav-item nav-link" href="#coefficients">Coefficients d'optimisation</a>
+      <a class="nav-item nav-link" href="#contextes">Contextes</a>
       <a class="nav-item nav-link" href="#evaluation">Évaluation</a>
+      <a class="nav-item nav-link" href="#previsions3mois">Prévisions passées<span class="sr-only">(current)</span></a>
       <a class="nav-item nav-link" href="https://github.com/loicpottier/covid19">Code</a>
     </div>
   </div>
@@ -314,7 +316,7 @@ f.write(vspace + '<div class="container-fluid">'
 f.write(table2([[#'''<img src = "https://images-na.ssl-images-amazon.com/images/I/41SWU0l77iL._AC_.jpg" width = 300>''',
                        '''
 <h4>Données et prévisions des indicateurs principaux de l'épidémie de covid19 en France</h4>
-<p>La méthode employée est mathématique, elle est décrite dans ce <a href=\"https://hal.archives-ouvertes.fr/hal-03183712"> preprint</a>.<br>
+<p>La méthode employée est mathématique, elle est décrite en français dans ce <a href="https://hal.archives-ouvertes.fr/hal-03183712"> preprint</a> et en anglais dans <a href="https://hal.archives-ouvertes.fr/hal-03183712v2">celui-ci</a>.<br>
 Elle produit des prévisions pour le nombre de patients en réanimation avec une <a href="#erreursmoyennes">erreur moyenne</a> inférieure à 3% à 7 jours, 6% à 14 jours, 10% à 1 mois, 20% à 2 mois, et 30% à 3 mois.<br>
 Pour les autres indicateurs de l'épidémie l'erreur est inférieure à 20% jusqu'à 1 mois.
 ''']]))
@@ -322,7 +324,7 @@ Pour les autres indicateurs de l'épidémie l'erreur est inférieure à 20% jusq
 def ecrit_previsions_region(atracerregion):
     atracer,fichiersR,fichiers = atracerregion
     f.write(table2([["<h5>Indicateurs de l'épidémie de covid19</h5>",
-                     "<h5>Taux de reproduction effectif (Reff)</h5>"], 
+                     "<h5>Taux de reproduction effectif (Reff), moyenne des départements</h5>"], 
                     [tabs([(nom[1:],image(fichiers[k] + '.png'))
                            for (k,(nom,err)) in enumerate(atracer)]),
                      tabs([(nom,image(fichiersR[k] + '.png'))
@@ -360,10 +362,20 @@ f.write(table2([[tabs([('France',image('infectes_france.png')),
                  tabs([("tranches d'âges",image('infectes_ages.png'))])]]))
 
 ######################################################################
+f.write('<a id="confines20mars"></a>'
+        + vspace + "<h3>Départements confinés le 20 mars</h3>")
+
+ecrit_previsions_region(atracerconfines20mars)
+######################################################################
+f.write('<a id="alpesmaritimes"></a>'
+        + vspace + "<h3>Dans les Alpes-Maritimes</h3>")
+ecrit_previsions_region(atracer06)
+######################################################################
 def dernierjour(x):
     return(jour_de_num[jours[0] + intervalle[ni(x)][1]-1])
 
-f.write('<h4>Indicateurs et contextes</h4>'
+f.write('<a id="indicateurscontextes"></a>'
+        + vspace + '<h4>Indicateurs et contextes</h4>'
         + "<p>Les indicateurs de la covid19 utilisés sont des données quotidiennes (courbes en traits gras ci-dessus), dont:"
         + '<ul><li>urgences: nombre de passages aux urgences pour suspicion de COVID-19 - Quotidien'
         + " (jusqu'au " + dernierjour('urgences') + ")"
@@ -371,14 +383,12 @@ f.write('<h4>Indicateurs et contextes</h4>'
         + " (jusqu'au " + dernierjour('nouv hospitalisations') + ")"
         + '<li>réanimations: nombre quotidien de nouvelles admissions en réanimation (SR/SI/SC) avec diagnostic COVID-19 déclarées en 24h'
         + " (jusqu'au " + dernierjour('nouv réanimations') + ")"
+        + "<li>réanimations, hospitalisations: nombre quotidien de patients en réanimation, hospitalisés avec diagnostic COVID-19"
+        + " (jusqu'au " + dernierjour('réanimations') + ")"
         + '<li>décès: nombre quotidien de nouveaux décès avec diagnostic COVID-19 déclarés en 24h'
         + " (jusqu'au " + dernierjour('nouv décès') + ")"
-#        + '<li>tests positifs: nombre quotidien de nouveaux tests positifs au COVID-19 en 24h'
-#        + " (jusqu'au " + dernierjour('positifs') + ")"
-#        + "<li>patients en réanimation, hospitalisés, par tranches d'âge"
-#        + " (jusqu'au " + dernierjour('réanimations') + ")"
-#        + "<li>personnes testées positives, taux de tests positifs, par tranches d'âge"
-#        + " (jusqu'au " + dernierjour('taux positifs') + ")"
+        + '<li>tests positifs: nombre quotidien de nouveaux tests positifs au COVID-19 en 24h, taux de tests positifs'
+        + " (jusqu'au " + dernierjour('positifs') + ")"
         + "</ul></p>"
         + "<p>Les données concernent chaque département (ou région) et chaque jour depuis mars 2020, et proviennent de <a href=\"https://www.data.gouv.fr/fr/pages/donnees-coronavirus\">www.data.gouv.fr</a></p>"
 )
@@ -410,50 +420,58 @@ f.write("<a id=\"correlations\"></a>"
         + vspace + '<h3>Corrélations</h3>'
         "<p>Attention: corrélation ne veut pas dire causalité, mais bon, cela peut donner des idées.</p>")
 
+heat_map(nomscont + nomsind, nomsind + nomscont,'_heat_correlation_tout',
+         fontcase = 4,
+         dim = (10,14))
+heat_map(nomscont, nomsind,'_heat_correlation_contexte_indicateur',
+         dim=(10,10))
+heat_map(dataconfinement['confinement'], nomsind,
+         '_heat_correlation_confinement_indicateur',
+         dim = (10,4))
+
+print('heatmaps finies')
+
 f.write(table2([[tabs([('contexte-indicateur',image('_heat_correlation_contexte_indicateur.png')),
                        ('confinement,couvre-feu',
                         image('_heat_correlation_confinement_indicateur.png')),
                        ('complètes',image('_heat_correlation_tout.png'))])]]))
 
-f.write('<a id="coefficients"></a>'
-        + vspace + "<h3>Coefficients d'optimisation</h3>"
-        "<p>Dépendances et coefficients d'optimisation de différents indicateurs.<br>"
-        + "Contextes influents.</p>")
+f.write('<a id="contextes"></a>'
+        + vspace + "<h3>Contextes</h3>"
+        + "<p>Les valeurs des contextes sont normalisées, elles n'ont donc pas de sens en elle-mêmes, ce sont leurs variations relatives qui en ont.</p>")
 
-f.write(table2([[tabs([('contextes influents',image('_contextes_influents.png'))]
-                      +[('recherche Google',image('_recherche google.png'))]
-                      +[('plancher des urgences',image('_tendance_min_urgences.png'))]),
-                 tabs([('coef. ' + nom,image('_coefficients_' + nom + '.png'))
-                       for (nom,err) in atracerfrance[0]]),
-]]))
+f.write(table2([[tabs([(tx,image('_contextes_' + tx + '.png'))
+                       for tx,lx in lcontinf]),
+                 tabs([('recherche Google',image('_recherche google.png')),
+                       ('plancher des urgences',image('_tendance_min_urgences.png'))])]]))
 
+######################################################################
 f.write('<a id="evaluation"></a>'
         + vspace + "<h3>Évaluation de la méthode de prévision</h3>"
         + "<p>On effectue deux évaluations différentes: on compare avec d'autres méthodes, et on compare les prévisions obtenues à partir des jours passés avec la réalité, avec deux méthodes différentes.</p>")
 
-f.write(vspace + "<h4>Comparaisons avec d'autres méthodes simples.</h4>"
-        + "<p>On compare les prévisions avec une prévision linéaire par la tangente, et une prévision par approximation à l'ordre 2<br>"
+f.write(vspace + "<h4>Comparaisons avec d'autres méthodes.</h4>"
+        + '''On peut comparer avec les prévisions à court terme de Paireau et al:<br> 
+<a href="https://modelisation-covid19.pasteur.fr/realtime-analysis/hospital/"> Projection à court terme des besoins hospitaliers pour les patients COVID-19</a><br>
+ et<br>
+ <a href="https://hal-pasteur.archives-ouvertes.fr/pasteur-03149082">An ensemble model based on early predictors to forecast COVID-19 healthcare demand in France</a>,<br>
+ qui donnent une erreur de 6% à 7 jours et 11% à 14 jours pour les lits de soins critiques.'''
+
+        + "<p>On compare aussi avec une prévision linéaire par la tangente (on prolonge la tangente à la courbe).<br>"
         + "Les prévisions à partir du jour \(j\) n'utilisent que les données antérieures au jour \(j\), mais avec les coefficients de prévisions calculés sur l'ensemble des données jusqu'à aujourd'hui.<br>"
-        + "Les méthodes simples donnent toujours de erreurs supérieures, et dépassent 50% d'erreur après 40 jours "
-        + '<a href="#erreurs">(détails ici)</a>.<br>'
+        + "La méthode de la tangente donne toujours de erreurs supérieures, et dépasse souvent 50% d'erreur après 40 jours. "
+        + '<a href="#erreurs">Détails ici, </a>'
+        + '<a href="#erreursdpasse">et, avec les données du passé, ici</a>.<br>'
         + "Voici les erreurs de notre méthode:</br>")
 
-f.write(table2([[imagew('_erreurs_moyennes.png',40)]]))
+f.write(table2([[imagew('_erreurs_moyennes_dpresent.png',40)]]))
 
+f.write('En utilisant uniquement les données du passé, erreurs moyennes sur les 6 dernières semaines:')
 
-f.write("<a id=\"previsionspassees\"></a>"
-        + "<h4>Prévisions passées depuis 6 semaines.</h4>"
-        + "<p>Pour avoir une idée de la pertinence des prévisions précédentes, on calcule les prévisions obtenues à partir du passé, comparées à la réalité:</p>"
-        +"<p>Courbe bleue: données réelles.<br>"
-        + "Courbes en pointillés: données approximées puis prévues à partir du jour \(j\) "
-        + "en utilisant uniquement les données des jours précédant \( j\).</p>"
-        + table2([[tabs([('réanimations',image('_réanimations_prev_passees.png'))]),
-                   tabs([(nom[1:],image('_' + nom[1:] + '_prev_passees.png'))
-                         for (nom,err) in atracerfrance[0]
-                         if nom != 'Rréanimations'])]]))
+f.write(table2([[imagew('_erreurs_moyennes_dpasse.png',40)]]))
 
 f.write("<a id=\"previsions3mois\"></a>"
-        + vspace + "<h4>Prévisions passées sur "+ str(dureefuturanime) + " jours, depuis 8 mois</h4>"
+        + vspace + "<h4>Prévisions passées sur "+ str(dureeprevfuturanime) + " jours, depuis 8 mois</h4>"
         + "<p>Courbe bleue: données réelles.<br>"
         + "Courbes orange à rose: données approximées puis prévues à partir du jour \(j\) "
         + "en utilisant les données des jours précédant \( j\), mais avec les coefficients de prévisions calculés sur l'ensemble des données jusqu'à aujourd'hui.<br>"
@@ -467,48 +485,54 @@ f.write(table2([[tabs([(nom[1:],video('previsions_' + nom[1:] + '.mp4'))
                  ]]
                ))
 
-heat_map(nomscont + nomsind, nomsind + nomscont,'_heat_correlation_tout',
-         fontcase = 4,
-         dim = (10,14))
-heat_map(nomscont, nomsind,'_heat_correlation_contexte_indicateur',
-         dim=(10,10))
-if inclusconfinement:
-    heat_map(dataconfinement['confinement'], nomsind,
-             '_heat_correlation_confinement_indicateur',
-             dim = (10,4))
+f.write("<a id=\"previsionspassees\"></a>"
+        + "<h4>Prévisions passées depuis 6 semaines.</h4>"
+        + "<p>Pour avoir une idée de la pertinence des prévisions précédentes, on calcule les prévisions obtenues à partir du passé, comparées à la réalité:</p>"
+        +"<p>Courbe bleue: données réelles.<br>"
+        + "Courbes en pointillés: données approximées puis prévues à partir du jour \(j\) "
+        + "en utilisant uniquement les données des jours précédant \( j\).</p>"
+        + table2([[tabs([('réanimations',image('_réanimations_prev_passees.png'))]),
+                   tabs([(nom[1:],image('_' + nom[1:] + '_prev_passees.png'))
+                         for (nom,err) in atracerfrance[0]
+                         if nom != 'Rréanimations'])]]))
 
-print('heatmaps finies')
+f.write("<a id=\"erreurs\"></a>"
+        + "<h4>Détail des erreurs avec différentes méthodes.</h4>")
+f1 = open(DIRSYNTHESE + '_evaluation_dpresent.html', 'r')
+f.write(f1.read())
+f1.close()
 
-######################################################################
-f.write('<a id="alpesmaritimes"></a>'
-        + vspace + "<h3>Dans les Alpes-Maritimes</h3>")
-ecrit_previsions_region(atracer06)
+f.write("<a id=\"erreursdpasse\"></a>"
+        + "<h4>Détail des erreurs (données du passé), erreurs moyennes sur les 6 dernières semaines:.</h4>")
+f1 = open(DIRSYNTHESE + '_evaluation_dpasse.html', 'r')
+f.write(f1.read())
+f1.close()
 
-######################################################################
-f.write('<a id="confines20mars"></a>'
-        + vspace + "<h3>Départements confinés le 20 mars</h3>")
-
-ecrit_previsions_region(atracerconfines20mars)
-######################################################################
-f.write('<a id="regions"></a>'
-        + vspace + "<h3>Les régions</h3>")
-for (x,a) in sorted(atracerregions[3:],key = lambda x:x[0]):
-    f.write("<h4>" + x + "</h4>")
-    ecrit_previsions_region(a)
-
-print('previsions regions finies')
 ######################################################################
 f.write("<a id=\"transmission\"></a>"
         + vspace + "<h4>Transmission entre classe d'âges</h4>"
         + "<p>Sur un an, les corrélations entre hospitalisations par classes d'âges suggèrent une contamination des jeunes adultes vers les plus vieux, par âges croissants, avec un décalage d'une dizaine de jours.</p>"
         + "<p>"+ imagew('hospitalisations_age_heat_corr_dec.png',40) + "</p>")
 
-f.write("<a id=\"erreurs\"></a>"
-        + "<h4>Détail des erreurs avec différentes méthodes.</h4>")
-f1 = open(DIRSYNTHESE + '_evaluation.html', 'r')
-f.write(f1.read())
-f1.close()
+######################################################################
+f.write('<a id="regions"></a>'
+        + vspace + "<h3>Les régions</h3>")
 
+f.write('<ul>')
+for (x,a) in sorted(atracerregions[3:],key = lambda x:x[0]):
+    f.write('<li><a href="#' + x + '">' + x + '</a>')
+
+f.write('</ul>')
+
+for (x,a) in sorted(atracerregions[3:],key = lambda x:x[0]):
+    f.write('<a id="' + x + '"></a>'
+        + vspace + "<h4>" + x + "</h4>")
+    ecrit_previsions_region(a)
+
+print('previsions regions finies')
+
+######################################################################
+# fin du fichier
 f.write(fin1)
 f.close()
 

@@ -6,6 +6,7 @@ import matplotlib.animation as animation
 np.seterr('raise')
 ######################################################################
 # paramètres importants
+######################################################################
 
 nombredelissage7 = 2
 mincorrelation = 0.034 # coefficients donnant une erreur minimale (Rnouv hospi)
@@ -13,31 +14,26 @@ mindecalage = 1
 contextessanslissage = []
 declargeur = 0
 prolonger_contextes = True #False #True
+prolonger_contextes_type = 1
 jdebut = '2020-02-24' 
 erreurmax_pour_prevoir = 40  # en %
 utiliser_Reff_pour_prevoir = True
-erreurmaxReff = 5
+erreurmaxReff = 7 #5
 
 ######################################################################
 # chargement des donnees
+######################################################################
 
 nouveau = False # False: on charge le fichier local
 nouveauprev = False # seulement les previsions, on met pas a jour les donnees
 nouveaucoefs = False
-inclusconfinement = True #False
-touteslesdonnees = True
-
-#coefs[ni('couvre-feu 18h-6h'),ni('hospitalisations')]
 
 if len(sys.argv) > 1 and sys.argv[1] == 'nouveauprev':
     nouveauprev = True
-    nouveaucoefs = False
-    nouveau = False
 
 if len(sys.argv) > 1 and sys.argv[1] == 'nouveaucoefs':
     nouveauprev = True
     nouveaucoefs = True
-    nouveau = False
 
 if len(sys.argv) > 1 and sys.argv[1] == 'nouveau':
     nouveauprev = True
@@ -71,32 +67,31 @@ contextes = pickle.load(f)
 f.close()
 print('fichier des contextes chargé')
 
-datamobilite, datameteo, datavacances, dataconfinement, dataapple, datahygiene, datagoogletrends, datagoogletrends_prev, regions, datapauvrete, lchamps_pauvrete, datapop, datavaccins, datavariants = contextes
+datamobilite, datameteo, datavacances, dataconfinement, dataapple, datahygiene, datagoogletrends, datagoogletrends_prev, regions, datavaccins, datavariants = contextes
 
 f = open(DIRCOVID19 + 'indicateurs.pickle','rb')
 indicateurs = pickle.load(f)
 f.close()
 print('fichier des indicateurs chargé')
 
-# j'ai viré sosmedecin car que 43 departements le donnent
-
 dataurge, datahospiurge, datareatot, datahospitot, datahospi, datarea, datadeces, datahospiage, dataposage, datapos, datatauxposage, datatauxpos, dataexcesdeces, datadeces17mai = indicateurs
 
-contextes_non_temporels = [x[1] for x in lchamps_pauvrete] + ['population']
-
-
-# à normaliser avec la population des départements
+# données à normaliser avec la population des départements
 donnees_extensives_dep = ['vaccins', 'vaccins ehpad', 'urgences', 'hospitalisation urgences',
                           'réanimations', 'nouv hospitalisations', 'nouv réanimations', 'nouv décès',
-                          'positifs', 'hospitalisations', 'hospi 0', 'hospi 09', 'hospi 19',
-                          'hospi 29', 'hospi 39', 'hospi 49', 'hospi 59', 'hospi 69', 'hospi 79',
-                          'hospi 89', 'hospi 90', 'positifs 09', 'positifs 19', 'positifs 29',
-                          'positifs 39', 'positifs 49', 'positifs 59', 'positifs 69', 'positifs 79',
-                          'positifs 89', 'positifs 90']
-######################################################################
-# on ajoute des Reff
+                          'positifs', 'hospitalisations']
 
-# Reff par département
+ldatacont = [datamobilite,datavacances]
+ldatacont += [datameteo, dataapple, datavaccins, datavariants,
+              datagoogletrends_prev]
+
+ldatacont.append(dataconfinement)
+
+ldataind = [dataurge, datahospiurge, datareatot,
+            datahospi, datarea, datadeces, datahospitot,
+            datapos, datatauxpos]
+
+# on ajoute les taux de reproduction effectifs Reff
 def dataReffdep(data):
     d = {'nom': 'R' + data['nom'],
          'titre': 'R effectif: ' + data['nom'],
@@ -108,45 +103,15 @@ def dataReffdep(data):
                               for dep in range(len(data['departements']))])}
     return(d)
 
-#Reff national
-def dataReffnat(data):
-    r0d = r0(lissage(np.sum(data['valeurs'][:,:], axis = 0),7,repete = 2),derive=7,maxR = 3)
-    d = {'nom': 'R' + data['nom'],
-         'titre': 'R effectif: ' + data['nom'],
-         'dimensions': ['departements', 'jours'],
-         'jours': data['jours'],
-         'departements': data['departements'],
-         'valeurs': np.array([r0d for dep in range(len(data['departements']))])}
-    return(d)
-
-######################################################################
-# on ne garde que les departements communs aux donnees
-
-ldatacont = [datamobilite,datavacances]
-if touteslesdonnees:
-    ldatacont += [datameteo, dataapple, datavaccins, datavariants,
-                  datagoogletrends_prev]
-
-if inclusconfinement:
-    ldatacont.append(dataconfinement)
-    print('----------- on a inclus les données de confinement/couvre-feu')
-
-ldataind = [dataurge, datahospiurge, datareatot,
-            datahospi, datarea, datadeces, datahospitot,
-            datapos, datatauxpos]
-
 ldataReff = [dataReffdep(d) for d in ldataind]
 
 ldataind = ldataind + ldataReff # + [datapos, datatauxpos]
 
-if False and touteslesdonnees:
-    ldataind += ([datahospiage[age] for age in sorted([a for a in datahospiage])]
-                 + [dataposage[age] for age in sorted([a for a in dataposage])
-                    if age != '0']
-                 + [datatauxposage[age] for age in sorted([a for a in datatauxposage])
-                    if age != '0'])
-
+# l'ensembles de données: contextes et indicateurs
 ldata = ldatacont + ldataind
+
+######################################################################
+# on ne garde que les departements communs à toutes les données
 
 departements = ldata[0]['departements'][:]
 [[departements.remove(d) for d in departements[:] if  d not in t['departements'] and d in departements]
@@ -159,7 +124,7 @@ for t in ldata:
 
 ######################################################################
 # matrice des données
-# on extrapole les données météo dans le futur en prenant les données un an avant
+######################################################################
 
 # union des jours
 # la creation du memo de num_de_jour peut prendre un peu temps
@@ -175,7 +140,12 @@ jours = [num_de_jour(j) for j in sorted(jours)]
 nomscont = [x for data in ldatacont for x in data[data['dimensions'][-1]]]
 nomsind = [data['nom'] for data in ldataind]
 
+# les noms des données
 noms = nomscont + nomsind
+def ni(x):
+    return(noms.index(x))
+
+# on extrapole les données météo dans le futur en prenant les données un an avant
 donnees_meteo = ['pression', 'humidité', 'précipitations sur 24', 'température', 'vent', 'variations de température']
 
 nnoms,ndeps,njours = (len(noms), len(departements), len(jours))
@@ -183,6 +153,7 @@ nnoms,ndeps,njours = (len(noms), len(departements), len(jours))
 nomsprevus = datavacances['vacances'] + dataconfinement['confinement'] + datameteo['meteo']
 
 present = aujourdhui
+jaujourdhui = num_de_jour(aujourdhui) - jours[0]
 
 def fin_donnees(data,present):
     if data['nom'] not in nomsprevus:
@@ -225,26 +196,9 @@ def creeM(present):
         kc += 1
     return((M,intervalle))
 
-
 M,intervalle = creeM(aujourdhui)
 
 print('matrice créée',jour_de_num[jours[0]],jour_de_num[jours[-1]])
-
-def ni(x):
-    return(noms.index(x))
-
-#plt.plot(np.sum(M[ni('urgences'),:,:], axis = 0));plt.show()
-'''
-plt.plot(np.sum(M[ni('urgences'),:,:], axis = 0))
-plt.plot(np.mean(M[ni('couvre-feu 18h-6h'),:,:], axis = 0))
-plt.show()
-plt.plot(lissage(np.sum(dataurge['valeurs'],axis=0)[-60:],7),'-o')
-plt.plot(np.sum(dataurge['valeurs'],axis=0)[-60:],'-o')
-plt.show()
-
-'''
-
-jaujourdhui = num_de_jour(aujourdhui) - jours[0]
 
 def normalise_data(M,intervalle,lissageind = nombredelissage7,
                    lissagecont = nombredelissage7,
@@ -274,24 +228,18 @@ normalise_data(Mreel,intervallereel,lissageind = 1,lissagecont = 1,
                               'confinement+commerces',
                               'couvre-feu 21h-6h',
                               'couvre-feu 20h-6h',
-                              'couvre-feu 18h-6h'])
-
-#dependances(ni('résidence'),coefs)
-#M[ni('urgences'),0,:100]
+                              'couvre-feu 18h-6h',
+                              'confinement ou couvre-feu'])
 
 normalise_data(M,intervalle)
 
-#M[ni('urgences'),0,:100]
-
+######################################################################
 # matrice des données relativisées à la population des départements
-
-utiliser_proportions = True
-
 mult_prop = 1e8
 def proportionsM(M):
     MR = copy.deepcopy(M)
     for x in range(nnoms):
-        if utiliser_proportions and  noms[x] in donnees_extensives_dep:
+        if noms[x] in donnees_extensives_dep:
             for d in range(ndeps):
                 # on ramene a 100 #si c'était la France
                 MR[x,d,:] = MR[x,d,:] / population_dep[departements[d]] * mult_prop #population_france 
@@ -306,7 +254,6 @@ def aderiver(x):
     return(noms[x] in nomsind
            and noms[x] not in [data['nom'] for data in ldataReff])
 
-# pour calculer les decalages
 def deriveM(MR,intervalle):
     MRD = copy.deepcopy(MR) 
     for x in range(nnoms):
@@ -317,13 +264,9 @@ def deriveM(MR,intervalle):
 
 MRD = deriveM(MR,intervalle)
 
-#plt.plot(np.sum(M[ni('urgences'),:,:], axis = 0));plt.show()
-
-#touteslesdonnees
-#plt.plot(np.transpose(np.mean(M[:,:,:300],axis=1)));plt.show()
-
 ######################################################################
 # décalages et corrélations
+######################################################################
 
 decmax = 50 # pour les calculs
 decmaxaccepte = 40 # au dela, on vire
@@ -374,18 +317,6 @@ def correlation(MRD,intervalle,x,y):
     y1 = min(njours,njours+d,yy1,xx1+d)
     return([d,corr,x0,x1,y0,y1])
 
-#plt.plot(vvx[:6000]);plt.plot(vvy[:6000]);plt.show()
-#correlation(MRD,intervalle,ni('travail'),ni('urgences'))
-#correlation(MRD,intervalle,ni('recherche horaires google'),ni('urgences'))
-#correlation(MRD,intervalle,ni('c.feu 20h-6h'),ni('urgences'))
-#correlation(MRD,intervalle,ni('couvre-feu 20h-6h'),ni('urgences'))
-'''
-plt.plot(np.sum(M[ni('urgences'),:,:], axis = 0))
-plt.plot(np.mean(M[ni('couvre-feu 20h-6h'),:,:], axis = 0))
-plt.show()
-'''
-
-
 # contient les [decalage, correlation, xjour0,xjour1, yjour0,yjour1]
 def calcule_correlations(M,MR,MRD,intervalle):
     coefs = np.zeros((nnoms,nnoms,6))
@@ -400,10 +331,6 @@ def calcule_correlations(M,MR,MRD,intervalle):
                     print('-------- travail - urgences: decalage',d, 'correlation', corr)
     return(coefs)
 
-#dataconfinement['confinement']
-
-# abs(corr) > 0.2 and d >= 1
-
 noms_exclus_dependances = nomsind[:] #[] #[x for x in noms  if 'positif' in x and 'taux' not in x]
 
 indicateurs_pour_prevoir = []
@@ -416,6 +343,8 @@ def predecesseurs(y,coefs, mincorr = mincorrelation):
             if abs(corr) > mincorr and d >= mindecalage:
                 ldep.append((x,d,corr))
     return(ldep)
+
+#mincorrelation = 0.034 # c'est e minimum d 'erreur sur les Reff: 13.4%
 
 def dependances(y,intervalle,coefs):
     mc = mincorrelation
@@ -433,18 +362,6 @@ def dependances(y,intervalle,coefs):
         coefs[y,y] = [0,1.,y0,y1,y0,y1]
     return(ld)
 
-def erreur(p,graphe):
-    s = 0
-    sc = 0
-    for x in range(nnoms):
-        for y in range(nnoms):
-            d = graphe[x,y,0]
-            c = abs(graphe[x,y,1])
-            if d != -1 and noms[x] in nomscont and noms[y] in nomsind:
-                s += c * ((p[y] - p[x]) - d)**2
-                sc += c
-    return(np.sqrt(s/(sc)))
-
 if nouveaucoefs:
     print('calcul des décalages et corrélations')
     coefs = calcule_correlations(M,MR,MRD,intervalle)
@@ -460,8 +377,7 @@ print('fichier des décalages et corrélations chargé')
 
 ######################################################################
 # coefficients de prevision
-# calculés sur la matrice MRD des derivees des valeurs relatives
-# avec les décalages et les dépendances donnés par les corrélations
+######################################################################
 
 contextes_a_prolonger = ['commerces et espaces de loisir (dont restaurants et bars)',
                          "magasins d'alimentation et pharmacies", 'parcs',
@@ -474,7 +390,6 @@ contextes_a_prolonger = ['commerces et espaces de loisir (dont restaurants et ba
                          'couvre-feu 20h-6h', 'couvre-feu 18h-6h']
 
 erreurcoefs = [[]]
-
 
 # plage de jours communs aux dependances
 def plage_jours_communs(y,ldepend,intervalle,coefs):
@@ -560,34 +475,6 @@ def calcule_coefficients(y,M,MR,MRD,intervalle,coefs):
             indicateurs_pour_prevoir.append(noms[y])
     return([C,ldepend,ymin,ymax]) # la plage de jours prevus
 
-
-# erreur sur les Reff en fonction de mincorrelation
-if False:
-    lerreur = []
-    mc0 = mincorrelation
-    nk = 100
-    for k in range(nk):
-        mincorrelation = 0.030 + k*(0.040 - 0.030)/nk
-        erreurcoefs[0] = []
-        indicateurs_pour_prevoir = [x for x in nomsind if x not in noms_exclus_dependances]
-        coefficients = [calcule_coefficients(y,M,MR,MRD,intervalle,coefs)
-                        for y in range(nnoms)]
-        e = np.mean(erreurcoefs[0])
-        print('--- erreur moyenne des coefficients de prevision:', ("%2.1f" % e) +'%')
-        print('indicateurs utilisés pour prévoir:')
-        for x in indicateurs_pour_prevoir:
-            print(x)
-        print('############################',mincorrelation,e)
-        lerreur.append((mincorrelation,e))
-
-    print(lerreur)
-    plt.plot([m for (m,e) in lerreur],[e for (m,e) in lerreur])
-    plt.grid()
-    plt.show()
-    mincorrelation = mc0
-
-#mincorrelation = 0.034 # c'est e minimum d 'erreur sur les Reff: 13.4%
-
 erreurcoefs[0] = []
 indicateurs_pour_prevoir = [x for x in nomsind if x not in noms_exclus_dependances]
 coefficients = [calcule_coefficients(y,M,MR,MRD,intervalle,coefs)
@@ -598,105 +485,92 @@ print('indicateurs utilisés pour prévoir:')
 for x in indicateurs_pour_prevoir:
     print(x)
 
-'''       
-for x in indicateurs_pour_prevoir:
-    if x in noms_exclus_dependances:
-        noms_exclus_dependances.remove(x)
-
-# on recommence
-coefficients = [calcule_coefficients(y,M,MR,MRD,intervalle,coefs)
-                for y in range(nnoms)]
-print('--- erreur moyenne des coefficients de prevision:',
-      ("%2.1f" % np.mean(erreurcoefs[0])) +'%')
-print('indicateurs utilisés pour prévoir:')
-for x in indicateurs_pour_prevoir:
-    print(x)
-'''
-
 ######################################################################
 # prevision du lendemain répétée
+######################################################################
+
 # le jour 0 est jours[0] (le premier des donnees des matrices)
 
-def prolonge_contexte(MF,MRF,MRDF,y,jour):
-    MF[y,:,jour] = MF[y,:,jour-1]
-    MRF[y,:,jour] = MRF[y,:,jour-1]
-    MRDF[y,:,jour] = MRDF[y,:,jour-1]
-
-nomsmin0 = nomsind
+def prolonge_contexte(MF,MRF,MRDF,y,jour,futur,typeprolonge = 0):
+    fmax = 30
+    if typeprolonge == 1 and futur <= fmax: # on suit en gros la tangente sur les 7 derniers jours
+        #print(str(jour),end=' ')
+        d = 3*futur/fmax + (1-futur/fmax)*1
+        for A in [MF,MRF,MRDF]:
+            A[y,:,jour] = (A[y,:,jour-1]
+                           + ((A[y,:,jour-1] - np.mean(A[y,:,jour-7:jour],axis = 1)) /(7/2))/d)
+                           #+ (A[y,:,jour-1] - A[y,:,jour-7]) / (7 * d))        
+    else:
+        for A in [MF,MRF,MRDF]:
+            A[y,:,jour] = A[y,:,jour-1]
+                           
 # prevoit un jour en fonction des precedents
 def prevoit_data(MF,MRF,MRDF,intervalle,coefficients,coefs,
-                 y,futur,jourdebut = aujourdhui, prevoitdupasse = False, prevoitcontextes = True):
-    if prevoitdupasse:
-        if noms[y] in nomsprevus:
-            jour = intervalle[y][1] - 1 + futur # prévoir les vacances? mouhaha!
-        else:
-            jour = min(jourdebut, intervalle[y][1] - 1) + futur
+                 y,futur,jourdebut = aujourdhui):
+    if noms[y] in nomsprevus:
+        jour = intervalle[y][1] - 1 + futur # prévoir les vacances? mouhaha!
     else:
-        jour = jourdebut + futur
-    if (prevoitdupasse and not prevoitcontextes and jour < intervalle[y][1] and noms[y] in nomscont):
+        jour = min(jourdebut, intervalle[y][1] - 1) + futur
+    if (jour < intervalle[y][1] and noms[y] in nomscont):
         return(0)
-    elif (prevoitdupasse and not prevoitcontextes and jour >= intervalle[y][1] and jour < njours
+    elif (jour >= intervalle[y][1] and jour < njours
           and prolonger_contextes and noms[y] in contextes_a_prolonger):
-        prolonge_contexte(MF,MRF,MRDF,y,jour)
+        prolonge_contexte(MF,MRF,MRDF,y,jour,jour-intervalle[y][1],typeprolonge = prolonger_contextes_type)
     else:
-        if (prevoitdupasse or jour >= intervalle[y][1]) and jour < njours:
-            if prolonger_contextes and noms[y] in contextes_a_prolonger:
-                prolonge_contexte(MF,MRF,MRDF,y,jour)
-            # calcul de MRDF
-            else:
-                if coefficients[y] != None:
-                    [C,ldepend,ymin,ymax] = coefficients[y]
-                    L = np.zeros((ndeps,len(ldepend)))
-                    for (kx,x) in enumerate(ldepend):
-                        [d,corr,x0,x1,y0,y1] = coefs[(x if x < 10000 else x - 10000),y]
-                        if x == y:
-                            L[:,kx] = copy.deepcopy(MRF[x,:, jour - int(d)])
-                        elif x < 10000:
-                            L[:,kx] = copy.deepcopy(MRDF[x,:, jour - int(d)])
-                        else:
-                            L[:,kx] = copy.deepcopy(MRF[x - 10000,:, jour - int(d)])
-                    for dep in range(ndeps):
-                        MRDF[y,dep,jour] = L[dep] @ C[dep]
-                else:
-                    if njours - jour == 10:
-                        print(njours - jour, 'pas prévu',jour_de_num[jour + jours[0]],
-                              noms[y])
-                    if aderiver(y):
-                        MRDF[y,:,jour] = 0
+        if jour < njours: # calcul de MRDF
+            if coefficients[y] != None:
+                [C,ldepend,ymin,ymax] = coefficients[y]
+                L = np.zeros((ndeps,len(ldepend)))
+                for (kx,x) in enumerate(ldepend):
+                    [d,corr,x0,x1,y0,y1] = coefs[(x if x < 10000 else x - 10000),y]
+                    if x == y:
+                        L[:,kx] = copy.deepcopy(MRF[x,:, jour - int(d)])
+                    elif x < 10000:
+                        L[:,kx] = copy.deepcopy(MRDF[x,:, jour - int(d)])
                     else:
-                        MRDF[y,:,jour] = MRDF[y,:,jour-1]
-                # calcul de MRF: on intègre
-                Ry = 'R' + noms[y]
-                if utiliser_Reff_pour_prevoir and Ry in indicateurs_pour_prevoir:
-                    #print('--',Ry)
-                    # on prevoit avec R effectif
-                    yR = noms.index(Ry)
-                    for dep in range(ndeps):
-                        # f'/ f:
-                        dvlog = math.log(max(0.01,MRF[yR,dep,jour - 1])) / intervalle_seriel
-                        #if noms[y] == 'positifs':
-                        #    print(jour,dvlog,MRF[y,dep,jour - 1],Ry)
-                        MRF[y,dep,jour] = MRF[y,dep,jour - 1] + dvlog * MRF[y,dep,jour - 1]
-                elif aderiver(y):
-                    for dep in range(ndeps):
-                        MRF[y,dep,jour] = MRF[y,dep,jour-1] +  MRDF[y,dep,jour]
-                        if noms[y] in nomsmin0:
-                            MRF[y,dep,jour] = max(0,MRF[y,dep,jour])
+                        L[:,kx] = copy.deepcopy(MRF[x - 10000,:, jour - int(d)])
+                for dep in range(ndeps):
+                    MRDF[y,dep,jour] = L[dep] @ C[dep]
+            else:
+                if njours - jour == 10:
+                    print(njours - jour, 'pas prévu',jour_de_num[jour + jours[0]],
+                          noms[y])
+                if aderiver(y):
+                    MRDF[y,:,jour] = 0
                 else:
-                    for dep in range(ndeps):
-                        MRF[y,dep,jour] = MRDF[y,dep,jour]
-                        if noms[y] in nomsmin0:
-                            MRF[y,dep,jour] = max(0,MRF[y,dep,jour])
-                # calcul de MF
-                if utiliser_proportions and noms[y] in donnees_extensives_dep:
-                    # on remet la valeur extensive
-                    for dep in range(ndeps):
-                        MF[y,dep,jour] = (MRF[y,dep,jour] * population_dep[departements[dep]]
-                                          / mult_prop) #population_france)
-                else:
-                    MF[y,:,jour] = copy.deepcopy(MRF[y,:,jour])
-                if futur <= 2:
-                    f = np.mean if noms[y] not in donnees_extensives_dep else np.sum
+                    MRDF[y,:,jour] = MRDF[y,:,jour-1]
+            # calcul de MRF: on intègre
+            Ry = 'R' + noms[y]
+            if utiliser_Reff_pour_prevoir and Ry in indicateurs_pour_prevoir:
+                #print('--',Ry)
+                # on prevoit avec R effectif
+                yR = noms.index(Ry)
+                for dep in range(ndeps):
+                    # f'/ f:
+                    dvlog = math.log(max(0.01,MRF[yR,dep,jour - 1])) / intervalle_seriel
+                    #if noms[y] == 'positifs':
+                    #    print(jour,dvlog,MRF[y,dep,jour - 1],Ry)
+                    MRF[y,dep,jour] = MRF[y,dep,jour - 1] + dvlog * MRF[y,dep,jour - 1]
+            elif aderiver(y):
+                for dep in range(ndeps):
+                    MRF[y,dep,jour] = MRF[y,dep,jour-1] +  MRDF[y,dep,jour]
+                    if noms[y] in nomsind:
+                        MRF[y,dep,jour] = max(0,MRF[y,dep,jour])
+            else:
+                for dep in range(ndeps):
+                    MRF[y,dep,jour] = MRDF[y,dep,jour]
+                    if noms[y] in nomsind:
+                        MRF[y,dep,jour] = max(0,MRF[y,dep,jour])
+            # calcul de MF
+            if noms[y] in donnees_extensives_dep:
+                # on remet la valeur extensive
+                for dep in range(ndeps):
+                    MF[y,dep,jour] = (MRF[y,dep,jour] * population_dep[departements[dep]]
+                                      / mult_prop) #population_france)
+            else:
+                MF[y,:,jour] = copy.deepcopy(MRF[y,:,jour])
+            if futur <= 2:
+                f = np.mean if noms[y] not in donnees_extensives_dep else np.sum
     return(jour)
 
 def integre2(v):
@@ -724,15 +598,11 @@ def fit_homot(v,v0):
         else:
             dk = dk/2
     return(k)
-    
-    
 
 # prevision à partir du jour jourdebut
 # dureefutur est le nombre de jours du futur a prevoir
-# prevoitcontextes indique si doit prevoir aussi les contextes apres le jour jourdebut
 def prevoit_tout(M,MR,MRD,intervalle,coefficients,coefs,
-                 dureefutur, jourdebut = aujourdhui, maxdata = 1.5, prevoitdupasse = False,
-                 prevoitcontextes = True):
+                 dureefutur,jourdebut, maxdata = 1.5):
     # le premier jour <= jourdebut ou manque une valeur
     jourdebut0 = np.min([intervalle[x][1]-1 for x in range(nnoms)] + [jourdebut])
     dureefutur = dureefutur + jourdebut - jourdebut0
@@ -744,48 +614,44 @@ def prevoit_tout(M,MR,MRD,intervalle,coefficients,coefs,
     for dureefutur1 in range(1,dureefutur+1):
         printback(str(dureefutur1))
         for y in range(nnoms):
-            if (prevoitcontextes
-                or noms[y] not in nomscont
+            if (noms[y] not in nomscont
                 or (noms[y] in nomscont and
                     jourdebut0 + dureefutur1 >= intervalle[y][1])):
                 jfin = prevoit_data(MF,MRF,MRDF,intervalle,coefficients,coefs,
                                     y,dureefutur1,
-                                    jourdebut = jourdebut0, prevoitdupasse = prevoitdupasse,
-                                    prevoitcontextes = prevoitcontextes)
+                                    jourdebut = jourdebut0)
                 jfins[y] = min(max(jfins[y],jfin),njours-1)
     print('prevision finie')
     # calage aujourdhui
-    if True: # methode 1
-        for y in range(nnoms):
-            if noms[y] in nomsind and aderiver(y):
-                j1 = min(intervalle[y][1]-1,jaujourdhui)
-                for dep in range(ndeps):
-                    # aujuste l'intégrale à l'intégrale réelle
-                    som = integre2(M[y,dep,:j1])
-                    somF = integre2(MF[y,dep,:j1])
-                    if somF != 0:
-                        MF[y,dep,:]  = MF[y,dep,:] /somF * som
-                    # ajuste à aujourdhui
-                    vm = M[y,dep,j1]
-                    vmF = MF[y,dep,j1]
-                    if vm * vmF != 0.:
-                        for j in range(njours):
-                            MF[y,dep,j]  = MF[y,dep,j] * math.exp(math.log(abs(vm / vmF)) * j / j1)
-                    # minimise l'erreur par homothétie
-                    k = fit_homot(MF[y,dep,:j1], M[y,dep,:j1])
-                    MF[y,dep,:] = MF[y,dep,:] * k
-                    # réajuste à aujourdhui linéairement sur les 100 derniers jours             
-                    j0 = j1 - 100
-                    v1F = MF[y,dep,j1]
-                    v1 = M[y,dep,j1]
-                    for j in range(j0,njours):
-                        MF[y,dep,j]  = MF[y,dep,j] + (v1 - v1F)*min((j - j0)/(j1 - j0),1)
-    # bornes sup et inf
-    if True:
-        for x in range(nnoms):
+    for y in range(nnoms):
+        if noms[y] in nomsind and aderiver(y):
+            j1 = min(intervalle[y][1]-1,jaujourdhui)
             for dep in range(ndeps):
-                m = np.max(np.abs(M[x,dep,:]))
-                MF[x,dep,:] = np.maximum(np.minimum(MF[x,dep,:], m * maxdata), - m * maxdata)
+                # aujuste l'intégrale à l'intégrale réelle
+                som = integre2(M[y,dep,:j1])
+                somF = integre2(MF[y,dep,:j1])
+                if somF != 0:
+                    MF[y,dep,:]  = MF[y,dep,:] /somF * som
+                # ajuste à aujourdhui
+                vm = M[y,dep,j1]
+                vmF = MF[y,dep,j1]
+                if vm * vmF != 0.:
+                    for j in range(njours):
+                        MF[y,dep,j]  = MF[y,dep,j] * math.exp(math.log(abs(vm / vmF)) * j / j1)
+                # minimise l'erreur par homothétie
+                k = fit_homot(MF[y,dep,:j1], M[y,dep,:j1])
+                MF[y,dep,:] = MF[y,dep,:] * k
+                # réajuste à aujourdhui linéairement sur les 100 derniers jours             
+                j0 = j1 - 100
+                v1F = MF[y,dep,j1]
+                v1 = M[y,dep,j1]
+                for j in range(j0,njours):
+                    MF[y,dep,j]  = MF[y,dep,j] + (v1 - v1F)*min((j - j0)/(j1 - j0),1)
+    # bornes sup et inf
+    for x in range(nnoms):
+        for dep in range(ndeps):
+            m = np.max(np.abs(M[x,dep,:]))
+            MF[x,dep,:] = np.maximum(np.minimum(MF[x,dep,:], m * maxdata), - m * maxdata)
     return((MF,MRF,MRDF,jourdebut0))
 
 def tronqueM(M,intervalle,fin):
@@ -797,38 +663,30 @@ def tronqueM(M,intervalle,fin):
             M0[x,:,fin+1:] = 0
     return((M0,intervalle0))
 
+# on prevoit tout de jourdebut inclus à jourfin exclus
+# on tronque les données à jourpresent
+# (mises à 0 après jourpresent, sauf les contextes prévus: vacances, confinements, meteo)
 def prevoit_tout_deb_pres_fin(M,MR,MRD,intervalle,coefficients,coefs,
-                              jourdebut,jourpresent,jourfin,
-                              recalculecoeffficients = False): #jourfin exclus
+                              jourdebut,jourpresent,jourfin, #jourfin exclus
+                              recalculecoefficients = False): 
     global indicateurs_pour_prevoir
-    jjdebut = jourdebut + 1 + 80 # si pas positifs, 40 suffit; a cause des decalages pour prevoir
-    jjpresent = jourpresent
-    jjfin = jourfin
-    dureefutur = jjfin - jjdebut
-    M0,intervalle0 = tronqueM(M,intervalle,jjpresent)
+    jdebut = max(jourdebut,80) # 80, et si pas positifs, 40 suffit; a cause des decalages pour prevoir
+    jpresent = jourpresent
+    jfin = jourfin
+    dureeprev = jfin - jdebut
+    M0,intervalle0 = tronqueM(M,intervalle,jpresent)
     MR0 = proportionsM(M0)
     MRD0 = deriveM(MR0,intervalle0)
-    if recalculecoeffficients: #True si on veut recalculer les coefficients à partir seulement du passé
+    coefficients0 = coefficients
+    coefs0 = coefs
+    if recalculecoefficients: #True si on veut recalculer les coefficients à partir seulement du passé
+        coefs0 = calcule_correlations(M0,MR0,MRD0,intervalle0)
         indicateurs_pour_prevoir = [x for x in nomsind if x not in noms_exclus_dependances]
-        coefficients = [calcule_coefficients(y,M0,MR0,MRD0,intervalle0,coefs)
+        coefficients0 = [calcule_coefficients(y,M0,MR0,MRD0,intervalle0,coefs0)
                         for y in range(nnoms)]
-    M2F,M2RF,M2RDF,jourdebut0 = prevoit_tout(M0,MR0,MRD0,intervalle0,coefficients,coefs,
-                                             dureefutur, jourdebut = jjdebut,
-                                             prevoitdupasse = True,
-                                             prevoitcontextes = False)
+    M2F,M2RF,M2RDF,jourdebut0 = prevoit_tout(M0,MR0,MRD0,intervalle0,coefficients0,coefs0,
+                                             dureeprev,jdebut)
     return(M0,M2F,M2RF,M2RDF,jourdebut0)
-
-'''
-MT,M1F,M1RF,M1RDF,jourdebut0 =  prevoit_tout_deb_pres_fin(M,MR,MRD,intervalle,coefficients,coefs,
-                                                          100,
-                                                          jaujourdhui,
-                                                          njours)
-plt.plot(np.sum(M1F[ni('réanimations'),:,:],axis=0))
-plt.plot(np.sum(MT[ni('réanimations'),:,:],axis=0))
-plt.grid()
-plt.show()
-
-'''
 
 jourstext = [jour_de_num[j] for j in jours]
 
@@ -840,6 +698,9 @@ def erreur_prevision(Mreel,MF,nom,passe = 2000):
     vp = f(MF[x,:,int(x1)-passe:int(x1)], axis = 0)
     e = np.linalg.norm(vr - vp) / np.linalg.norm(vr) * 100
     return(e)
+
+######################################################################
+# courbes des prévisions
 
 def trace_previsions(Mreel,MF,MRF,MRDF,
                      lnoms, passe = 200,futur = 60, deps = None, nomdeps = None, erreur = None):
@@ -870,8 +731,7 @@ def trace_previsions(Mreel,MF,MRF,MRDF,
           DIRSYNTHESE + fichier)
     return(fichier)
 
-# on exclus les previsions ou l erreur moyenne sur Reff est > errmax
-
+# on exclut les previsions ou l'erreur moyenne sur Reff est > errmax
 def trace_previsions_region(MF,MRF,MRDF,
                             Ratracer, passe = 200,futur = 60, deps = None, nomdeps = None,
                             erreurmax = erreurmaxReff):
@@ -904,7 +764,10 @@ def trace_previsions_region(MF,MRF,MRDF,
                              nomdeps = nomdeps)
         fichiers.append(f)
     return(atracer,fichiersR,fichiers)
-    
+
+######################################################################
+# plancher des urgences
+
 x0,x1 = intervalle[ni('urgences')]
 deb = 86
 fin = 350
@@ -938,71 +801,80 @@ for nom in [data['nom'] for data in ldataReff]:
 Ratracer = sorted(Ratracer,key = lambda x: x[1])
 print('R à tracer')
 print(Ratracer)
-iledefrance = regions['Ile-de-France']
+confines20mars = [7,92,93,94,91,95,77,78,2,59,60,62,80,6,76,27]
+
+def trace_previsions_regions():
+    ltraces = []
+    for r in regions:
+        trace = trace_previsions_region(MF,MRF,MRDF,
+                                        Ratracer, passe=passe, futur = dureeprev,
+                                        deps = regions[r], nomdeps = r,
+                                        erreurmax = 8)
+        ltraces.append((r,trace))
+    return(ltraces)
 
 if nouveauprev:
     atracerfrance = trace_previsions_region(MF,MRF,MRDF,
                                             Ratracer, passe=passe, futur = dureeprev,
-                                            erreurmax = 5)
+                                            erreurmax = 7)
     atracer06 = trace_previsions_region(MF,MRF,MRDF,
                                         Ratracer, passe=passe, futur = dureeprev,
                                         deps = [6], nomdeps = 'Alpes-Maritimes',
                                         erreurmax = 10)
-    atraceriledefrance = trace_previsions_region(MF,MRF,MRDF,
-                                                 Ratracer, passe=passe, futur = dureeprev,
-                                                 deps = iledefrance, nomdeps = 'Ile de France',
-                                                 erreurmax = 8)
+    atracerconfines20mars = trace_previsions_region(MF,MRF,MRDF,
+                                                    Ratracer, passe=passe, futur = dureeprev,
+                                                    deps = confines20mars,
+                                                    nomdeps = 'Départements confinés le 20 mars',
+                                                    erreurmax = 8)
+    atracerregions = [('France',atracerfrance),
+                      ('Alpes-Maritimes',atracer06),
+                      ('Départements confinés le 20 mars',atracerconfines20mars)]
+    atracerregions += trace_previsions_regions()
     f = open(DIRCOVID19 + 'atracer.pickle','wb')
-    pickle.dump((atracerfrance,atracer06,atraceriledefrance),f)
+    pickle.dump(atracerregions,f)
     f.close()
 
 f = open(DIRCOVID19 + 'atracer.pickle','rb')
-atracerfrance,atracer06,atraceriledefrance = pickle.load(f)
+atracerregions = pickle.load(f)
 f.close()
 print('fichier des tracés chargé')
 
-
 ######################################################################
 # contextes influents
-lcontinf = ['commerces et espaces de loisir (dont restaurants et bars)',
-            "magasins d'alimentation et pharmacies",
-            'arrêts de transports en commun',
-            'travail',
-            'résidence',
-            'vacances']
-
-if touteslesdonnees:
-    lcontinf = ['commerces et espaces de loisir (dont restaurants et bars)',
-                "magasins d'alimentation et pharmacies",
-                'arrêts de transports en commun',
-                'travail',
-                'résidence',
-                'humidité',
-                'température',
-                'vacances',
-                'à pied',
-                'en transport en commun',
-                'recherche voyage google']
+lcontinf = [('mobilité google',['commerces et espaces de loisir (dont restaurants et bars)',
+                       "magasins d'alimentation et pharmacies",
+                       'arrêts de transports en commun',
+                       'travail',
+                       'résidence']),
+            ('météo',['humidité','température']),
+            ('vacances',['vacances']),
+            ('mobilité apple',['en voiture', 'à pied', 'en transport en commun']),
+            ('recherche google',
+             ['recherche horaires google', 'recherche voyage google', 'recherche itinéraire google']),
+            ('vaccins',['vaccins', 'vaccins ehpad']),
+            ('variants',['variant UK', 'variants ZA BR', 'variant inconnu']),
+            ('confinement ou couvre-feu',['confinement ou couvre-feu'])
+]
 
 if nouveauprev:
-    passe = 60
-    trace([(zipper(jourstext[jaujourdhui-passe:min(jaujourdhui+1,intervalle[x][1])],
-                   np.mean(Mreel[x,:,jaujourdhui-passe:min(jaujourdhui+1,intervalle[x][1])],
-                           axis = 0)
-                   if noms[x] != 'vacances'
-                   else np.mean(Mreel[x,:,jaujourdhui-passe:min(jaujourdhui+1,intervalle[x][1])],
-                                axis = 0)),
-            noms[x][:25],'-')
-           for x in [ni(x) for x in lcontinf]],
-          'contextes corrélés',
-          DIRSYNTHESE + '_contextes_influents',
-          #xlabel = 'random',
-          fontcourbes = 6)
+    passe = jaujourdhui #200
+    for tx,lx in lcontinf:
+        trace([(zipper(jourstext[max(jaujourdhui-passe,intervalle[x][0]):min(jaujourdhui+1,intervalle[x][1])],
+                       lissage(np.mean(Mreel[x,:,max(jaujourdhui-passe,
+                                                     intervalle[x][0]):min(jaujourdhui+1,intervalle[x][1])],
+                                       axis = 0),7,repete = 2)
+                       if noms[x] != 'vacances'
+                       else np.mean(Mreel[x,:,max(jaujourdhui-passe,intervalle[x][0]):min(jaujourdhui+1,intervalle[x][1])],
+                                    axis = 0)),
+                noms[x][:20],'-')
+               for x in [ni(x) for x in lx]],
+              tx,
+              DIRSYNTHESE + '_contextes_' + tx)
 ######################################################################
-# recherches google et variation des urgences
+# recherches google et variation des réanimations
 indicateurrech= 'réanimations'
 
-if nouveauprev and touteslesdonnees:
+if nouveauprev:
     decalage = int(coefs[ni('recherche voyage google'),ni(indicateurrech)][0])
     x0,x1 = intervalle[ni(indicateurrech)][0]+30, jaujourdhui + 1
     xrech = intervalle[ni('recherche horaires google')][1]
@@ -1020,82 +892,36 @@ if nouveauprev and touteslesdonnees:
            (zipper(jourstext[x0:xurg],
                    (np.sum(MRD[ni(indicateurrech),:,x0:xurg],axis = 0)
                     -(np.mean(np.sum(MRD[ni(indicateurrech),:,x0:xurg],axis = 0))))),
-            'variation des urgences','-')],
+            'variation des ' + indicateurrech ,'-')],
           'recherche google voyage/itinéraire/horaire\n et variation des ' + indicateurrech,
           DIRSYNTHESE + '_recherche google',
           xlabel = 'random'
     )
 
-######################################################################
-# dispersion des coefficients
-
-def trace_coefficients(data):
-    C = copy.deepcopy(coefficients[ni(data)][0])
-    #C = np.mean(C,axis=0)
-    depend = coefficients[ni(data)][1]
-    for (ky,y) in enumerate(depend):
-        cmax = np.max(np.abs(C[:,ky]))
-        if cmax != 0:
-            C[:,ky] = C[:,ky] / cmax
-    Cm = np.mean(C,axis=0)
-    C3 = [(depend[i],Cm[i],C[:,i]) for i in range(len(depend))]
-    C3 = sorted(C3, key = lambda x: -x[1])
-    C = np.array([c for (d,cm,c) in C3])
-    Cm = np.array([cm for (d,cm,c) in C3])
-    depend = [d for (d,cm,c) in C3]
-    fig = plt.figure(figsize=(6,6))
-    fig.suptitle("coefficients des dépendances \ndans l'optimisation quadratique ("
-                 + data + ")",
-                 fontdict = {'size':4} )
-    plt.plot(C,'o')
-    plt.plot(Cm,'-')
-    plt.xticks(range(len(depend)),
-               [(noms[x][:20] if x < 10000 else noms[x - 10000][:20] + '(val)') for x in depend],
-               rotation = 60,horizontalalignment='right',
-               rotation_mode = 'anchor',
-               fontsize = 5)
-    plt.grid()
-    plt.savefig(DIRSYNTHESE + '_coefficients_' + data + '.pdf', dpi = 600)
-    plt.savefig(DIRSYNTHESE + '_coefficients_' + data + '.png', dpi = 600)
-    #plt.show()
-
-#trace_coefficients('Rurgences')
-    
-if nouveauprev:
-    for (nom,err) in atracerfrance[0]:
-        print('coefficients', nom, "%2.3f" % err)
-        trace_coefficients(nom)
 
 ######################################################################
-# animation des prévisions passées
-def cree_prev_duree(duree = 60, dureefutur = 60, pas = 1):
+# calcul des prévisions passées
+# on calcule la liste des prévisions constituées
+# des données réelles jusqu'au jour present - j tel que
+# debutprevpasse <= j <= 0
+# et des données prévues à partir des précédentes sur une période de dureeprevfutur
+# ceci tous les <pas> jours
+
+def cree_prev_duree(debutprevpasse = 60, dureeprevfutur = 60, pas = 1, recalculecoefficients = False):
     x1 = min([x1 for (x0,x1) in intervalle])
     lprev = []
-    dureefutur0 = dureefutur
-    for j in range(0,duree,pas):
+    dureeprevfutur0 = dureeprevfutur
+    for j in range(0,debutprevpasse,pas):
         xdep = x1 - 1 - j
-        jjdebut = 40
-        jjpresent = xdep
-        jjfin = xdep + dureefutur + 1
-        print(jjdebut,jjpresent,jjfin)
+        jdebut = 0
+        jpresent = xdep
+        jfin = xdep + dureeprevfutur + 1
+        print(jdebut,jpresent,jfin)
         MT,M1F,M1RF,M1RDF,jourdebut0 = prevoit_tout_deb_pres_fin(M,MR,MRD,intervalle,coefficients,coefs,
-                                                                 jjdebut,jjpresent,jjfin)
-        #plt.plot(np.sum(M1F[ni('urgences'),:,:],axis=0))
-        #plt.plot(np.sum(M[ni('urgences'),:,:],axis=0))
-        #plt.grid()
-        #plt.show()
-        lprev.append((j,dureefutur,x1,xdep,M1F,jourdebut0,coefficients))
+                                                                 jdebut,jpresent,jfin,
+                                                                 recalculecoefficients = recalculecoefficients)
+        lprev.append((j,dureeprevfutur,x1,xdep,M1F,jourdebut0,coefficients))
     return(lprev)
-
-'''
-dureefutur = 60 #60
-duree = 90 # 250 
-passe = 100 # 260
-pasanime = 21
-
-lprev = cree_prev_duree(duree = duree,dureefutur = dureefutur,pas = pasanime)
-
-'''
 
 def prev_lin(v,j,dj,largeur = 7): # prevoit de j+1 à j+dj a partir de la pente en j
     try:
@@ -1118,7 +944,7 @@ def prev_quad(v,j,dj,largeur = 7): # prevoit de j+1 à j+dj a partir des dériv�
     except:
         return([0]*dj)
 
-def courbes_prev_duree(lprev,x,duree = 60, passe = 100, dureefutur = 60, pas = 1, maxerreur = 100):
+def courbes_prev_duree(lprev,x,duree_erreurs = 60, passe = 100, dureeprevfutur = 60, pas = 1, maxerreur = 100):
     M,intervalle = creeM(aujourdhui)
     normalise_data(M,intervalle)
     x0,x1 = intervalle[x]
@@ -1130,58 +956,47 @@ def courbes_prev_duree(lprev,x,duree = 60, passe = 100, dureefutur = 60, pas = 1
     lcourbes = []
     lC = []
     erreurs = dict([(j,[])
-                    for j,dureefutur0,x1,xdep,MF,jourdebut0,coefficients in lprev])
+                    for j,dureeprevfutur0,x1,xdep,MF,jourdebut0,coefficients in lprev])
     erreurslin = dict([(j,[])
-                       for j,dureefutur0,x1,xdep,MF,jourdebut0,coefficients in lprev])
+                       for j,dureeprevfutur0,x1,xdep,MF,jourdebut0,coefficients in lprev])
     erreursquad = dict([(j,[])
-                       for j,dureefutur0,x1,xdep,MF,jourdebut0,coefficients in lprev])
-    for j,dureefutur0,x1p,xdep,MF,jourdebut0,coefficients in lprev:
-        dfutur = min(dureefutur0,dureefutur)
-        lC.append(coefficients)
-        jdep = int(x1)-passe
-        # on lisse la prevision
-        for d in range(ndeps):
-            for nl in range(2):
-                MF[x,d,jdep:xdep+dfutur] = lissage(MF[x,d,jdep:xdep+dfutur],7)
-        p = f(MF[x,:,jdep:xdep+dfutur], axis = 0)
-        plin = np.concatenate([p[:xdep-jdep],
-                               prev_lin(p[:xdep-jdep],xdep-jdep-1,dfutur,largeur=15)])
-        pquad = np.concatenate([p[:xdep-jdep],
-                                prev_quad(p[:xdep-jdep],xdep-jdep-1,dfutur,largeur=15)])
-        r = f(Mreel[x,:,jdep:xdep+dfutur], axis = 0)
-        lj = jourstext[jdep:xdep+dfutur]
-        for k in range(dureefutur//7):
-            je = xdep + 7*k - jdep
-            if 0 <= je < len(p) and je + jdep < x1:
-                try:
-                    erreurs[j].append((k, min(abs(100 * (p[je] - r[je])/(0.001+ r[je])),
-                                              maxerreur)))
-                    erreurslin[j].append((k, min(abs(100 * (plin[je] - r[je])/(0.001+ r[je])),
-                                                 maxerreur)))
-                    erreursquad[j].append((k, min(abs(100 * (pquad[je] - r[je])/(0.001+ r[je])),
+                       for j,dureeprevfutur0,x1,xdep,MF,jourdebut0,coefficients in lprev])
+    for j,dureeprevfutur0,x1p,xdep,MF,jourdebut0,coefficients in lprev:
+        if j < duree_erreurs:
+            dfutur = min(dureeprevfutur0,dureeprevfutur)
+            lC.append(coefficients)
+            jdep = int(x1)-passe
+            # on lisse la prevision
+            for d in range(ndeps):
+                for nl in range(2):
+                    MF[x,d,jdep:xdep+dfutur] = lissage(MF[x,d,jdep:xdep+dfutur],7)
+            p = f(MF[x,:,jdep:xdep+dfutur], axis = 0)
+            plin = np.concatenate([p[:xdep-jdep],
+                                   prev_lin(p[:xdep-jdep],xdep-jdep-1,dfutur,largeur=15)])
+            pquad = np.concatenate([p[:xdep-jdep],
+                                    prev_quad(p[:xdep-jdep],xdep-jdep-1,dfutur,largeur=15)])
+            r = f(Mreel[x,:,jdep:xdep+dfutur], axis = 0)
+            lj = jourstext[jdep:xdep+dfutur]
+            for k in range(dureeprevfutur//7):
+                je = xdep + 7*k - jdep
+                if 0 <= je < len(p) and je + jdep < x1:
+                    try:
+                        erreurs[j].append((k, min(abs(100 * (p[je] - r[je])/(0.001+ r[je])),
                                                   maxerreur)))
-                except:
-                    print('probleme erreur',k,j,je,np.shape(erreurs))
-                    #print('--- jour',j, erreurs[j])
-        # on vire dès qu'il y a une trop grande variation d'un jour à l'autre
-        dp = [i for i in range(len(p)-1) if abs(p[i+1]-p[i])>abs(p[i])/3]
-        if dp != []:
-            p = p[:dp[0]]
-            lj = lj[:dp[0]]
-        lcourbes.append(zipper(lj,[correctionpop * v for v in p]))
+                        erreurslin[j].append((k, min(abs(100 * (plin[je] - r[je])/(0.001+ r[je])),
+                                                     maxerreur)))
+                        erreursquad[j].append((k, min(abs(100 * (pquad[je] - r[je])/(0.001+ r[je])),
+                                                      maxerreur)))
+                    except:
+                        print('probleme erreur',k,j,je,np.shape(erreurs))
+                        #print('--- jour',j, erreurs[j])
+            # on vire dès qu'il y a une trop grande variation d'un jour à l'autre
+            dp = [i for i in range(len(p)-1) if abs(p[i+1]-p[i])>abs(p[i])/3]
+            if dp != []:
+                p = p[:dp[0]]
+                lj = lj[:dp[0]]
+            lcourbes.append(zipper(lj,[correctionpop * v for v in p]))
     return((reel,lcourbes,lC,erreurs,erreurslin,erreursquad))
-
-'''
-x = ni('urgences')
-passe = 100
-dureefutur = 60
-pas = 1
-plt.plot(f(M[x,:,int(x1)-passe:int(x1)], axis = 0))
-plt.plot(f(MF[x,:,jdep:xdep+dureefutur], axis = 0))
-plt.show()
-trace([(reel,'','-'),(lcourbes[0],'','-')],'','_',close=False)
-
-'''
 
 def axejours(lj):
     n = len(lj)
@@ -1198,17 +1013,19 @@ def mmax(l):
         return(0)
     else:
         return(max(l))
+    
 ######################################################################
 # moyennes des prévisions, ponderees (plus avenir, moins de poids)
+
 def prevision_moyenne(lprev,x):
     correctionpop = population_france / sum([population_dep[d] for d in departements])
     v = np.zeros(njours)
     nv = np.zeros(njours)
     xdepmin = njours
     f = np.mean if noms[x] not in donnees_extensives_dep else np.sum
-    for j,dureefutur0,x1p,xdep,MF,jourdebut0,coefficients in lprev:
+    for j,dureeprevfutur0,x1p,xdep,MF,jourdebut0,coefficients in lprev:
         xdepmin = min(xdep,xdepmin)
-        xfin = min(njours,xdep+dureefutur0)
+        xfin = min(njours,xdep+dureeprevfutur0)
         for j in range(xdep,xfin):
             poids = (xfin - j)**2
             v[j] += f(MF[x,:,j],axis=0) * poids
@@ -1224,14 +1041,14 @@ def prevision_moyenne(lprev,x):
     return([correctionpop * x for x in v],xdepmin,erreur)
 
 #https://matplotlib.org/3.1.0/gallery/color/named_colors.html
-dureefuturanime = 90
-def anime_previsions(lprev,nom, duree = 60, passe = 100, dureefutur = dureefuturanime,pas = 1):
+dureeprevfuturanime = 90
+def anime_previsions(lprev,nom, duree = 60, passe = 100, dureeprevfutur = dureeprevfuturanime,pas = 1):
     print('animation',nom)
     x = ni(nom)
     reel, previsions,lC,erreurs,erreurslin,erreursquad = courbes_prev_duree(lprev,x,
-                                                                            duree = duree,
+                                                                            duree_erreurs = duree,
                                                                             passe = passe,
-                                                                            dureefutur = dureefutur,
+                                                                            dureeprevfutur = dureeprevfutur,
                                                                             pas = pas)
     f = np.mean if noms[x] not in donnees_extensives_dep else np.sum
     pm,debpm,erreurm = prevision_moyenne(lprev,x)
@@ -1271,38 +1088,24 @@ def anime_previsions(lprev,nom, duree = 60, passe = 100, dureefutur = dureefutur
     writer = animation.FFMpegWriter(fps=5, bitrate=10000)
     ani.save(DIRSYNTHESE + "previsions_" + nom + ".mp4", writer = writer, dpi=DPI) 
 
-'''
-for i in range(100):
-    p = i/100
-    plt.plot([i+x for x in  range(100)],
-             color = (0.7 * p,0.5 - 0.5 * p**3, 0.5 * p**3))
-
-plt.show()
-'''
-#lprev = cree_prev_duree(duree = 5,dureefutur = 60)v
-#anime_previsions(lprev,'urgences',duree = 5, dureefutur = 60)
-#lprev = cree_prev_duree(duree = 30,dureefutur = 60)
-#anime_previsions(lprev,'urgences',duree = 30, dureefutur = 60)
-#lprev = cree_prev_duree(duree = 30,dureefutur = 60)
-#anime_previsions(lprev,'urgences',duree = 30, dureefutur = 60)
 ######################################################################
 # qualité des previsions
 
 serreur = 'moyenne'
 
-def evalue(lprev,lnom,duree = 60, dureefutur = 60,passe = 100,
+def evalue(lprev,lnom,duree_erreurs = 60, dureeprevfutur = 60,passe = 100,
            maxerreur = 100, pas = 1):
     erreurs = {}
     for nom in lnom:
         x = ni(nom)
         # ex est ordonné par jour de debut de prévision decroissants
-        reel, previsions,lC,ex,elinx,equadx = courbes_prev_duree(lprev,x, duree = duree,
+        reel, previsions,lC,ex,elinx,equadx = courbes_prev_duree(lprev,x, duree_erreurs = duree_erreurs,
                                                                  passe = passe,
-                                                                 dureefutur = dureefutur,
+                                                                 dureeprevfutur = dureeprevfutur,
                                                                  maxerreur = maxerreur, pas = pas)
-        e7 = [[] for k in range(dureefutur//7)]
-        elin7 = [[] for k in range(dureefutur//7)]
-        equad7 = [[] for k in range(dureefutur//7)]
+        e7 = [[] for k in range(dureeprevfutur//7)]
+        elin7 = [[] for k in range(dureeprevfutur//7)]
+        equad7 = [[] for k in range(dureeprevfutur//7)]
         for j in sorted(ex):
             exj = dict(ex[j])
             elinxj = dict(elinx[j])

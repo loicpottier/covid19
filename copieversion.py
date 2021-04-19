@@ -8,14 +8,15 @@
 
 import os
 
-version = 13
+version = 20
 dir = 'version' + str(version)
-while dir in os.listdir('..'):
+while dir in os.listdir('..') or dir+'.tgz' in os.listdir('..'):
     version += 1
     dir = 'version' + str(version)
 
 print('version', version)
-os.system('tar -cvf ../version' + str(version) + '.tgz '
-          + '../versioncourante')
+os.system('mkdir ../version' + str(version))
+os.system('cp copieversion.py urlcache.py outils.py charge_contextes.py charge_indicateurs.py correlation.py synthese.py evaluation.py popinfectee.py ../version' + str(version))
+
 
 

@@ -395,30 +395,31 @@ print('vacances ok',jours[-1])
 deps = datavacances['departements']
 jours = datavacances['jours']
 
-t = np.zeros((len(deps),len(jours),9))
+t = np.zeros((len(deps),len(jours),1))
 
-def confinement(numconf,cfdeps,j0,j1):
+def confinement(cfdeps,j0,j1,valconf):
     for dep in cfdeps:
         d = deps.index(dep)
         for j in range(num_de_jour(j0),num_de_jour(j1)+1):
-            t[d,j-num_de_jour(jours[0]),numconf] = 100
+            t[d,j-num_de_jour(jours[0]),0] = max(valconf,
+                                                 t[d,j-num_de_jour(jours[0]),0])
 
 # confinements
 
 # 17 mars au 11 mai: tous les departements
-confinement(0,deps,'2020-03-17','2020-05-11')
+confinement(deps,'2020-03-17','2020-05-11',100)
 # 30-10-2020 au 27-11-2020 confinement
-confinement(0,deps,'2020-10-30','2020-11-27')
+confinement(deps,'2020-10-30','2020-11-27',80)
 # 28-11-2020 au 14-12-2020 confinement mais commerces ouverts
-confinement(1,deps,'2020-11-28','2020-12-14')
+confinement(deps,'2020-11-28','2020-12-14',60)
 
 ######################################################################
 # couvre-feu 21h-6h
 
 # 17-10-2020 au 23-10-2020
-confinement(2,[75,77,78,91,92,93,94,95, # ile de france
+confinement([75,77,78,91,92,93,94,95, # ile de france
                13,38,59,69,34,76,42,31],# 8 metropoles
-            '2020-10-17','2020-10-22')
+            '2020-10-17','2020-10-22',20)
 # 23-10-2020 au 30-10-2020, 21h à 6h
 '''
 jsont = chargejson('https://www.data.gouv.fr/fr/datasets/r/bfded8e2-e1d0-4601-8b81-0807f8dca65d',
@@ -432,52 +433,45 @@ cf2 = [x['properties']['INSEE_DEP'] for x in jsont['features']]
 cf2 = [int(x) for x in cf2 if x not in ['2A','2B']]
 '''
 cf2 = [1, 5, 6, 7, 8, 9, 10, 12, 13, 14, 21, 26, 30, 31, 34, 35, 37, 38, 39, 42, 43, 45, 48, 49, 51, 54, 59, 60, 62, 63, 64, 65, 66, 67, 69, 71, 73, 74, 75, 76, 77, 78, 81, 82, 83, 84, 87, 91, 92, 93, 94, 95]
-confinement(2,cf2,'2020-10-23','2020-10-29')
+confinement(cf2,'2020-10-23','2020-10-29',20)
 
 ######################################################################
 # couvre-feu 20h-6h
 
-confinement(3,deps,'2020-12-15','2021-01-15')
+confinement(deps,'2020-12-15','2021-01-15',25)
 ######################################################################
 # couvre-feu 18h-6h
 
 # Hautes-Alpes, Alpes-Maritimes, Ardennes, Doubs, Jura, Marne, Haute-Marne, Meurthe-et-Moselle, Meuse, Moselle, Nièvre, Haute-Saône, Saône-et-Loire, Vosges et Territoire de Belfort
-confinement(4,[5,6,8,25,39,51,52,54,55,57,58,70,71,88,90],
-            '2021-01-02','2021-01-30')
+confinement([5,6,8,25,39,51,52,54,55,57,58,70,71,88,90],
+            '2021-01-02','2021-01-30',35)
 # Hautes-Alpes, Alpes-Maritimes, Ardennes, Doubs, Jura, Marne, Haute-Marne, Meurthe-et-Moselle, Meuse, Haute-Saône, Vosges, Moselle, Territoire de Belfort, Nièvre, Saône-et-Loire, Bas-Rhin, Bouches-du-Rhône, Haut-Rhin, Allier, Vaucluse, Cher, Côte d'Or, Alpes de Haute-Provence, Drôme et Var
-confinement(4,[5,6,8,25,39,51,52,54,55,57,58,70,71,88,90,67,13,68,3,84,18,21,4,26,83],
-            '2021-01-12','2021-01-30')
-confinement(4,deps,'2021-01-16','2021-03-19')
+confinement([5,6,8,25,39,51,52,54,55,57,58,70,71,88,90,67,13,68,3,84,18,21,4,26,83],
+            '2021-01-12','2021-01-30',35)
+confinement(deps,'2021-01-16','2021-03-19',35)
 
 ######################################################################
 #confinement le week-end
 
-confinement(5,[6,59],'2021-02-26','2021-03-19')
-confinement(5,[62],'2021-03-04','2021-03-19')
+confinement([6,59],'2021-02-26','2021-03-19',20)
+confinement([62],'2021-03-04','2021-03-19',20)
 
 ######################################################################
 # confinement3
-confinement(6,[7,92,93,94,91,95,77,78,2,59,60,62,80,6,76,27],'2021-03-20','2021-04-05')
-confinement(6,[7,92,93,94,91,95,77,78,2,59,60,62,80,6,76,27,10,58,69],'2021-03-27','2021-04-27')
-confinement(6,deps,'2021-04-06','2021-05-02')
+confinement([7,92,93,94,91,95,77,78,2,59,60,62,80,6,76,27],'2021-03-20','2021-04-05',80)
+confinement([7,92,93,94,91,95,77,78,2,59,60,62,80,6,76,27,10,58,69],'2021-03-27','2021-04-27',80)
+confinement(deps,'2021-04-06','2021-05-02',80)
 
 ######################################################################
 # couvre-feu de 19h à 6h
-confinement(7,deps,'2021-03-20','2021-05-02')
+confinement(deps,'2021-03-20','2021-05-02',30)
 
 dataconfinement = {'nom': 'confinement',
-                   'titre': 'confinement/couvre-feu',
+                   'titre': 'confinement ou couvre-feu',
                    'dimensions': ['departements','jours','confinement'],
                    'departements': deps,
                    'jours': jours,
-                   'confinement': ['confinement',
-                                   'confinement+commerces',
-                                   'couvre-feu 21h-6h',
-                                   'couvre-feu 20h-6h',
-                                   'couvre-feu 18h-6h',
-                                   'confinement we',
-                                   'confinement 20 mars 2021',
-                                   'couvre-feu 19h-6h'],
+                   'confinement': ['confinement ou couvre-feu'],
                    'valeurs': t}
 
 print('confinement/couvre-feu ok')
@@ -783,74 +777,6 @@ datagoogletrends_prev = {'nom': 'googletrends',
 
 print('requetes google ok',jours[-1])
 
-######################################################################
-# eaux usées
-# https://www.data.gouv.fr/fr/datasets/stations-de-traitement-des-eaux-usees-france-entiere/
-
-######################################################################
-# https://covidnet.fr/
-
-######################################################################
-# pauvreté par départements
-# https://www.insee.fr/fr/statistiques/fichier/4507225/base-filosofi-2017_CSV.zip
-f = open('pauvrete/cc_filosofi_2017_DEP.CSV','r')
-s = f.read()
-ls = [x.split(';') for x in s.split('\n')]
-f.close()
-
-lchamps_pauvrete = [('TP6017','Taux de pauvreté'),
-                    ('MED17','Niveau de vie médian'),
-                    ('D117','1er décile du niveau de vie'),
-                    ('D917','9e décile du niveau de vie'),
-                    ('RD17','9e décile/1er décile'),
-                    ('TP60AGE117','Taux de pauvreté<30 ans'),
-                    ('TP60AGE217','Taux de pauvreté 30-39 ans'),
-                    ('TP60AGE317','Taux de pauvreté 40-49 ans'),
-                    ('TP60AGE417','Taux de pauvreté 50-59 ans'),
-                    ('TP60AGE517','Taux de pauvreté 60-74 ans'),
-                    ('TP60AGE617','Taux de pauvreté >75 ans'),
-                    ('NBMENFISC17','Nombre de ménages fiscaux'),
-                    ('NBPERSMENFISC17','Nombre de personnes dans les ménages fiscaux'),
-                    ]
-
-valdep = [[int(x[ls[0].index('CODGEO')])]
-          + [x[ls[0].index(c)] for (c,t) in lchamps_pauvrete]
-          for x in ls[1:-1] if x[ls[0].index('CODGEO')][1] not in ['A','B']]
-
-deps = [v[0] for v in valdep]
-jours = [jour_de_num[k] for k in range(num_de_jour('2019-01-01'),num_de_jour('2022-01-01'))]
-datav = np.zeros((len(deps),len(jours),len(lchamps_pauvrete) - 2))
-for (d,v) in enumerate(valdep):
-    datav[d,:,:] = ([float(v[1]), float(v[2])/(float(v[13])/float(v[12]))]
-                    + [float(x) for x in v[3:12]])
-
-datapauvrete = {'nom': 'taux de pauvreté',
-                'titre': 'taux de pauvreté',
-                'dimensions': ['departements','jours','pauvreté'],
-                'departements': deps,
-                'jours': jours,
-                'pauvreté': [v[1] for v in lchamps_pauvrete[:-2]],
-                'valeurs': datav}
-
-print('taux de pauvreté chargé')
-
-######################################################################
-# population
-print('on charge la population', flush = True)
-deps = [d for d in population_dep]
-datav = np.zeros((len(deps),len(jours),1))
-for (d,v) in enumerate(population_dep):
-    datav[d,:,0] = v
-
-datapop = {'nom': 'population',
-           'titre': 'population',
-           'dimensions': ['departements','jours','population'],
-           'departements': [d for d in population_dep],
-           'jours': jours,
-           'population': ['population'],
-           'valeurs': datav}
-
-print('population chargée')
 
 ######################################################################
 # vaccination
@@ -866,10 +792,6 @@ def get(data,x,champ):
 departements = ['0' + str(x) for x in range(1,10)] + [str(x) for x in range(10,96) if x != 20]
 
 # parfois le séparateur est la virgule!
-#nombre quotidien de personnes ayant reçu au moins une dose, par classes d’âge, et par date d’injection :
-csvages = chargecsv('https://www.data.gouv.fr/fr/datasets/r/83cbbdb9-23cb-455e-8231-69fc25d58111',
-                    zip = False,
-                    sep = ';')[:-1] # enlever le [''] de la fin
 # nombre quotidien de personnes ayant reçu au moins une dose, par date d’injection :
 csv = chargecsv('https://www.data.gouv.fr/fr/datasets/r/4f39ec91-80d7-4602-befb-4b522804c0af',
                 zip = False,
@@ -882,7 +804,10 @@ csvehpad = chargecsv('https://www.data.gouv.fr/fr/datasets/r/54dcd1af-a4cd-47c6-
 print('csv chargés', flush = True)
 print(csv[0])
 
-jours = [j for j in range(num_de_jour('2020-02-01'),num_de_jour(aujourdhui)+1)]
+dernierjour = min([num_de_jour(get(csv,csv[-1], 'jour')),
+                   num_de_jour(get(csvehpad,csvehpad[-1], 'jour'))])
+
+jours = [j for j in range(num_de_jour('2020-02-01'),dernierjour+1)]
 vac = np.zeros((len(departements),len(jours),2))
 for x in csv:
     dep = get(csv,x,'dep')
@@ -921,9 +846,6 @@ datavaccins = {'nom': 'vaccins',
                'valeurs': vac}
 
 print('vaccins ok', jour_de_num[jours[-1]])
-######################################################################
-# égoûts
-# https://www.data.gouv.fr/fr/datasets/reseau-de-collecte-des-eaux-usees/
 
 ######################################################################
 # variants
@@ -1038,7 +960,7 @@ datavariants = {'nom': 'variants',
                'dimensions': ['departements', 'jours','variants'],
                'jours': [jour_de_num[j] for j in jours],
                 'departements': departements,
-               'variants' : ['variant UK', 'variants ZA BR', 'variant inc.'],
+               'variants' : ['variant UK', 'variants ZA BR', 'variant inconnu'],
                'valeurs': var}
 
 print('variants ok', jour_de_num[jours[-1]])
@@ -1047,7 +969,7 @@ print('variants ok', jour_de_num[jours[-1]])
 #
 contextes = [datamobilite, datameteo, datavacances, dataconfinement, dataapple, datahygiene,
              datagoogletrends, datagoogletrends_prev,
-             regions, datapauvrete,lchamps_pauvrete[:-2],datapop,
+             regions, 
              datavaccins, datavariants]
 
 import pickle

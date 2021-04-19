@@ -1,7 +1,13 @@
 import urllib.request
 import gzip
 import pickle
-DIRCOVID19 = '/home/loic/covid19/' # pour les gros fichiers
+
+#DIRCOVID19 = '/home/loic/covid19/' # pour les gros fichiers
+######################################################################
+# Version DEV
+
+DIRCOVID19 = '/home/loic/covid19dev/' # pour les gros fichiers
+######################################################################
 DIRCOVID19UK = '/home/loic/covid19UK/' # pour les gros fichiers
 DIRCACHE = DIRCOVID19 + 'cache/'
 

@@ -195,11 +195,12 @@ def trace(lcourbes,titre,fichier,xlabel = 0,dimensions = None, close = True,
     plt.grid()
     plt.title(titre,fontdict = {'size':10})
     try:
-        plt.savefig(fichier + '.pdf', dpi=600)
+        plt.savefig(fichier + '.pdf', dpi=300)
     except:
         print('problème pdf: '+ fichier)
     try:
-        plt.savefig(fichier + '.png', dpi=600)
+        plt.savefig(fichier + '.png', dpi=300)
+        #plt.savefig(fichier + '.jpg', dpi=600)
     except:
         print('problème png: '+ fichier)
     plt.show(False)

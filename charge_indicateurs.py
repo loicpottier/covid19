@@ -72,7 +72,7 @@ datadecestot = {'nom': 'décès',
             'departements': [int(d) for d in deps],
             'valeurs': np.array([[mfloat(x[3]) for x in td[dep]] for dep in deps])}
 
-print('hospitot ok', jours[-1])
+print('hospitot ok', jours[-1], ',', len(deps), 'départ.')
 
 ######################################################################
 # urgences quotidien
@@ -141,7 +141,7 @@ datasosmedecin = {'nom': 'sosmedecin',
                   'valeurs': np.array([[mfloat(x[3]) for x in td[dep]] for dep in deps])}
 '''
 #print('urge, hospiurge, sosmedecin ok', jours[-1])
-print('urge, hospiurge ok', jours[-1])
+print('urge, hospiurge ok', jours[-1], ',', len(deps), 'départ.')
 
 ######################################################################
 # hospitalieres quotidien
@@ -193,7 +193,7 @@ datadeces = {'nom': 'nouv décès',
              'departements': [int(d) for d in deps],
              'valeurs': np.array([[mfloat(x[3]) for x in td[dep]] for dep in deps])}
 
-print('hospi ok', jours[-1])
+print('hospi ok', jours[-1], ',', len(deps), 'départ.')
 ######################################################################
 # hospitalisation classes d'ages, par régions
 '''
@@ -244,7 +244,7 @@ for age in ['0'] + [str(x)+'9' for x in range(9)]+['90']: # 0 c est le total des
                          'departements': deps,
                          'valeurs': t}
 
-print('hospiage ok', jours[-1])
+print('hospiage ok', jours[-1], ',', len(deps), 'départ.')
 
 ######################################################################
 # tests
@@ -294,7 +294,7 @@ for age in ['0'] + [str(x)+'9' for x in range(9)]+['90']: # 0 c est le total des
 datapos = dataposage['0']
 datatauxpos = datatauxposage['0']
 
-print('positifs age ok', jours[-1])
+print('positifs age ok', jours[-1], ',', len(deps), 'départ.')
 
 ######################################################################
 # exces de deces durant les semaines 11 à 14 de 2020: 9 mars au 5 avril
