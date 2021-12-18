@@ -30,6 +30,22 @@ aujourdhui = (str(now.tm_year) + '-'
               + '-'
               + (str(now.tm_mday) if now.tm_mday > 9
                  else '0' + str(now.tm_mday)))
+aujourdhuih = (str(now.tm_year) + '-'
+               + (str(now.tm_mon) if now.tm_mon > 9
+                  else '0' + str(now.tm_mon))
+               + '-'
+               + (str(now.tm_mday) if now.tm_mday > 9
+                  else '0' + str(now.tm_mday))
+               + 'T'
+               + (str(now.tm_hour) if now.tm_hour > 9
+                  else '0' + str(now.tm_hour))
+               + ':'
+               + (str(now.tm_min) if now.tm_min > 9
+                  else '0' + str(now.tm_min))
+               + ':'
+               + (str(now.tm_sec) if now.tm_sec > 9
+                  else '0' + str(now.tm_sec)))
+
 def mmax(l):
     if l == []:
         return(1000000000000000000000000000000)
@@ -99,7 +115,7 @@ plt.plot(lissage([1,3,5,2,4,6,3,5,7,4],3))
 plt.show()
 '''
 # on prend le voisinage
-def derivee(l, largeur = 1): # largeur impair
+def derivee(l, largeur = 1): # largeur impaire
     if len(l) <= 3: return(l)
     if largeur == 1:
         l1 = np.array(np.concatenate([l[:1],l]))
@@ -129,6 +145,16 @@ def joli(jour):
         j = jour[8:10]
         m = jour[5:7]
         return(j + ' ' + mois[int(m)])
+    else:
+        return(str(jour))
+
+nomsmois = ['janvier','février','mars','avril','mai','juin', 'juillet','août','septembre','octobre','novembre','décembre']
+def joli2(jour):
+    if type(jour) is str:
+        j = jour[8:10]
+        m = jour[5:7]
+        a = jour[:4]
+        return(j + ' ' + nomsmois[int(m) - 1] + ' ' + a)
     else:
         return(str(jour))
 
@@ -486,3 +512,232 @@ def extrapole_manquantes(ld, manquante = 0):
     return(ld)
 
 extrapole_manquantes([1,2,0,0,5])
+######################################################################
+# google charts
+import hashlib
+
+def newDate(x):
+    if 'T' not in x:
+        a,m,j = x.split('-')
+        return('new Date(' + a + ',' + str(int(m)-1) + ',' + str(int(j)-1) + ')')
+    else:
+        return('new Date(\'' + x + '\')')
+
+def entier(x):
+    try:
+        a = int(float(x))
+        if a < 50:
+            a = float(x)
+    except:
+        try:
+            a = newDate(x)
+        except:
+            a = x
+    return(a)
+
+def arronditable(t):
+    return([[(int(10000*x)/10000 if type(x) == float else x) for x in y] for y in t])
+
+def trace_chart(table,titre,
+                width = 900, #900
+                height = 700, #700
+                options = None,
+                area = False): # table commence par les noms des colonnes
+    id = hashlib.md5(str(table).encode("utf-8")).hexdigest()
+    #ligne1 = ["{label: '" + table[0][0] + "', type: 'string'}"] + ["{label: '" + x + "', type: 'number'}"
+    #                                                               for x in table[0][1:]]
+    ligne1 = table[0]
+    table = [ligne1] + [[newDate(line[0]) if type(line[0]) is str else line[0] ]
+                        + [entier(x) for x in line[1:]]
+                        for line in table[1:]]
+    table = arronditable(table)
+    #print(ligne1)
+    #print(table[100])
+    options_base = '''
+              curveType: 'function', //
+              legend: { position: 'bottom' },'''
+    if options == None:
+        options = options_base
+    else:
+        options = options_base + options
+    script = ('''
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart'], 'language': 'fr'});
+      google.charts.setOnLoadCallback(drawChart''' + id + ''');
+
+      function drawChart''' + id + '''() {
+        var data = google.visualization.arrayToDataTable('''
+              + str(table).replace("'null'",'null').replace("'new ",'new ').replace('"new ','new ').replace(")'",')').replace(')"',')').replace('],','],\n')
+              + ''');
+
+        data.setColumnProperty(0, 'type', 'date');
+
+        var options = {
+              title: '''
+              + "'" + titre + "'," + options + '''
+        };
+
+        var chart = new google.visualization.'''
+              + ('AreaChart' if area else 'LineChart')
+              + '(document.getElementById('
+              + "'" + id + "'"
+              + '''));
+
+        chart.draw(data, options);
+      }
+    </script>''')
+    div = '<div id="' + id + '" style="width: ' + str(width) + 'px; height: ' + str(height) + 'px"></div>'
+    #print(id)
+    return({'id':id, 'script': script,'div': div})
+
+def plotcourbes_charts(courbes,titre = '',options = None, area = False):
+    lj = []
+    for (courbe,nom,t) in courbes:
+        lj = lj + [x[0] for x in courbe]
+    lj = sorted(list(set(lj))) # liste des jours en abcisse
+    table = ([['jour'] + [nom for (courbe,nom,t) in courbes]]
+             + [[j] + ['null' for k in range(len(courbes))]
+                for j in lj])
+    for (c,(courbe,nom,t)) in enumerate(courbes):
+        lv = val(lj,courbe)
+        for k in range(len(lj)):
+            table[1+k][1+c] = lv[k] if lv[k] not in [np.nan,np.inf,None] else 'null'
+    # enlever les colonnes de null, ca plante google charts
+    nulles = []
+    for c in range(len(courbes)):
+        nulle = True
+        for l in table[1:]:
+            if l[c] != 'null':
+                nulle = False
+        if nulle:
+            nulles.append(c)
+    for c in nulles[::-1]:
+        for l in range(len(table)):
+            table[l] = table[l][:c] + table[l][c+1:]
+    return(trace_chart(table,titre,options = options, area = area))
+
+def trace_charts(lcourbes,titre = '',options = None, area = False):
+    return(plotcourbes_charts(lcourbes,titre = titre,options = options, area = area))
+
+######################################################################
+# html
+debut1 = '''<!DOCTYPE html><meta charset="UTF-8">
+<head>
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-165293312-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-165293312-1');
+</script>
+<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<style>
+.tab-content>.tab-pane {
+  height: 1px;
+  overflow: hidden;
+  display: block;
+ visibility: hidden;
+}
+.tab-content>.active {
+  height: auto;
+  overflow: auto;
+  visibility: visible;
+}
+</style>
+</head>
+<body>
+<div class="container-fluid">
+ '''
+
+fin1 = '''
+</div>
+</body>
+'''
+
+# heatmap, bof, la valeur c est que la chaleur de la case, j'en voudrais une autre
+# pas fini
+def heatmap_charts(heattable,titre = '', options = None):
+    id = hashlib.md5(str(table).encode("utf-8")).hexdigest()
+    script = '''
+<script src="https://cdn.anychart.com/releases/8.9.0/js/anychart-core.min.js"></script>
+<script src="https://cdn.anychart.com/releases/8.9.0/js/anychart-heatmap.min.js"></script>
+
+var data = [''' + ','.join(['{x: "' + x + '", y: "' + y + '", heat: ' + str(v) + '}'
+                            for(x,y,v) in heattable]) + '''
+];
+
+// create a chart and set the data
+chart = anychart.heatMap(data);
+
+// set the container id
+chart.container("container");
+
+// initiate drawing the chart
+chart.draw();'''
+
+
+def normalise_nom(x):
+    for c in '.,éèêàâôûù;-, ':
+        x = x.replace(c,'')
+    return(x)
+
+def tabs(lt):
+    t = str(time.time()).replace('.','')
+    r = '<ul class="nav nav-tabs" id="myTab" role="tablist">'
+    for (k,(nom,contenu)) in enumerate(lt):
+        nom2 = normalise_nom(nom) + t
+        r += ('<li class="nav-item"><a class="nav-link' + (' active' if k == 0 else '')
+              + '" id="'
+              + nom2 + '-tab" data-toggle="tab" href="#'
+              + nom2 + '" role="tab" aria-controls="'
+              + nom2 + '" aria-selected="true">'
+              + nom + '</a></li>')
+    r += '</ul>'
+    r += '<div class="tab-content">'
+    for (k,(nom,contenu)) in enumerate(lt):
+        nom2 = normalise_nom(nom) + t
+        r += ('<div id="'
+              + nom2 + '" class="tab-pane fade show' + (' active' if k == 0 else '')
+              + '">'
+              + contenu
+              + '</div>')
+    r += '</div>'
+    return(r)
+
+def table2(l):
+    r = '<table class="table">'
+    for x in l:
+        r += ('<tr valign=top>')
+        for y in x:
+            r += '<td valign = top>'
+            r += y
+            r += '</td>'
+        r += '</tr>'
+    r += '</table>'
+    return(r)
+
+def table2h(l):
+    r = '<table class="table table-sm"><thead><tr>'
+    x = l[0]
+    for y in x:
+        r += '<th scope ="col">'
+        r += y
+        r += '</th>'
+    r += ('</tr></thead><tbody>')
+    for x in l[1:]:
+        r += ('<tr valign=top>')
+        for y in x:
+            r += '<td valign = top>'
+            r += y
+            r += '</td>'
+        r += '</tr>'
+    r += '</tbody></table>'
+    return(r)
