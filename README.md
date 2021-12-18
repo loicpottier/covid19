@@ -11,3 +11,5 @@ usage:
 python3 monde.py new
 
 ce qui génère le fichier previsions_quotidiennes/_synthese.html
+
+les autres fichiers sont ceux du code du printemps 2021.
