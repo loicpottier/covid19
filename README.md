@@ -1,5 +1,6 @@
 # covid19
 code des prévisions: https://cp.lpmib.fr/medias/covid19/_synthese.html
+
 le code est dans les fichiers:
 
 - urlcache.py (mettre à jour en local DIRCOVID19)
