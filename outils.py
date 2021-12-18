@@ -11,9 +11,6 @@ import copy
 import random
 from urlcache import *
 
-DIRSYNTHESE = 'synthese/'
-DIRSYNTHESEUK = 'syntheseUK/'
-
 def mfloat(x):
     try:
         return(float(x))
