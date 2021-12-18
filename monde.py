@@ -1,8 +1,5 @@
-# Prévision des indicateurs du covid pour les pays du monde (en fait 16)
-# à partir des données de mobilité de Google
-# Il n'y a pas l'Allemagne, car il y manque les hospitalisations hebdomadaires et les hospitalisations.
-# python3 monde.py
-#
+# Prévision des indicateurs du covid pour des pays du monde
+# python3 monde.py new
 
 from outils import *
 
