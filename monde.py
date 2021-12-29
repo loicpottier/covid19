@@ -7,6 +7,7 @@ recharger = False #True
 touslespays = False
 useapple = True
 testcoefvac = False
+uploader = True
 
 if len(sys.argv) > 1 and sys.argv[1] == 'new':
     recharger = True
@@ -21,6 +22,10 @@ if len(sys.argv) > 1 and sys.argv[1] == 'newtest':
     recharger = True
     testcoefvac = True
     print('on charge les dernières données disponibles, tests pour coefvac')
+
+if len(sys.argv) > 1 and sys.argv[1] == 'local':
+    uploader = False
+    print('données locales, sans upload')
 
 jourfin = num_de_jour('2022-02-28')
 
@@ -73,22 +78,6 @@ worldind = ['location', 'date',
             #'hospital_beds_per_thousand', 'life_expectancy',
             #'human_development_index'
 ]
-
-'''
-for ind in worldind:
-    print(ind,'\t',get(x,ind))
-
-for ind in worldind:
-    print(ind,'\t',get(x1,ind))
-
-get(x,'reproduction_rate')
-get(x,'total_vaccinations')
-get(x,'people_vaccinated')
-get(x,'people_fully_vaccinated')
-get(x,'total_boosters')
-
-[get(x,'weekly_hosp_admissions') for x in world[36800:36900]]
-'''
 
 lespays = sorted(list(set([get(x,'location') for x in world[1:]])))
 print('nombre de pays:',len(lespays))# 237 pays
@@ -223,16 +212,6 @@ nomsvaccination = ['people_vaccinated', 'people_fully_vaccinated', 'people_vacci
                    'people_fully_vaccinated_per_hundred', 'total_boosters',
                    'total_boosters_per_hundred']
 
-'''
-for p in paysindic:
-    for i in ['people_vaccinated', 'people_fully_vaccinated', 'people_vaccinated_per_hundred',
-              'people_fully_vaccinated_per_hundred','total_boosters', 'total_boosters_per_hundred']:
-        if i in paysindic[p]:
-            jdep,jfin,v = paysindic[p][i]
-            v = extrapole_lin_amorti(v,jourfin - jfin)
-            paysindic[p][i] = (jdep,jourfin,v)
-'''
-
 ######################################################################
 # données de la France par data.gouv.fr: plus récentes
 
@@ -247,28 +226,20 @@ if recharger:
     csv3 = chargecsv('https://www.data.gouv.fr/fr/datasets/r/dd0de5d9-b5a5-4503-930a-7b08dc0adc7c',
                      zip = False,
                      sep = ';')
+    #https://www.data.gouv.fr/fr/datasets/donnees-de-laboratoires-pour-le-depistage-indicateurs-sur-les-mutations/
+    csv4 = chargecsv('https://www.data.gouv.fr/fr/datasets/r/848debc4-0e42-4e3b-a176-afc285ed5401',
+                     zip = False,
+                     sep = ';')
     f = open(DIRCOVID19 + 'hospfrance.pickle','wb')
-    pickle.dump((csv1,csv2,csv3),f)
+    pickle.dump((csv1,csv2,csv3,csv4),f)
     f.close()
 
 f = open(DIRCOVID19 + 'hospfrance.pickle','rb')
-csv1,csv2,csv3 = pickle.load(f)
+csv1,csv2,csv3,csv4 = pickle.load(f)
 f.close()
 
 ################### 
 data = csv1[1:-1]
-['"dep"', '"sexe"', '"jour"', '"hosp"', '"rea"', '"HospConv"', '"SSR_USLD"', '"autres"', '"rad"', '"dc"']
-'''
-dep	integer	Département
-sexe	integer	Sexe 	0
-jour	string($date)	Date de notification
-hosp	integer	Nombre de personnes actuellement hospitalisées
-rea	integer	Nombre de personnes actuellement en réanimation ou soins intensifs
-rad	integer	Nombre cumulé de personnes retournées à domicile
-dc	integer	Nombre cumulé de personnes décédées à l'hôpital
-'''
-['"01"', '"0"', '2020-03-18', '2', '0', 'NA', 'NA', 'NA', '1', '0']
-
 jours = sorted(set([x[2] for x in data]))
 
 def vdata(k):
@@ -290,17 +261,6 @@ paysindic['France']['hosp_patients'] = (jdep,jfin,hosp)
 
 ################### 
 data = csv2[1:-1]
-['"dep"', '"jour"', '"incid_hosp"', '"incid_rea"', '"incid_dc"', '"incid_rad"']
-'''
-dep	integer	Département
-jour	string($date)	Date de notification 
-incid_hosp	string 	Nombre quotidien de personnes nouvellement hospitalisées
-incid_rea	integer	Nombre quotidien de nouvelles admissions en réanimation 
-incid_dc	integer	Nombre quotidien de personnes nouvellement décédées
-incid_rad	integer	Nombre quotidien de nouveaux retours à domicile 
-'''
-['"01"', '2020-03-19', '1', '0', '0', '0']
-
 jours = sorted(set([x[1] for x in data]))
 
 def vdata(k):
@@ -323,20 +283,6 @@ paysindic['France']['new_deaths'] = (jdep,jfin,deces)
 
 ################### 
 data = csv3[1:-1]
-['fra', 'jour', 'P_f', 'P_h', 'P', 'T_f', 'T_h', 'T', 'cl_age90', 'pop']
-'''
-fra	String	France
-jour	Date	Jour
-pop	integer	Population de reference (du departement, de la région, nationale)
-t	integer	Nombre de test réalisés
-cl_age90	integer	Classe d'age
-p	integer	Nombre de test positifs
-p_h	integer	Nombre de test positif chez les hommes
-t_h	integer	Nombre de test effectués chez les hommes
-p_f	integer	Nombre de test positif chez les femmes
-t_f	integer	Nombre de test effectués chez les femmes
-'''
-['FR', '2020-05-13', '7', '6', '13', '601', '649', '1282', '09', '7763205.6862729']
 
 jours = sorted(set([x[1] for x in data]))
 
@@ -358,13 +304,41 @@ jfin = num_de_jour(jours[-1])
 paysindic['France']['new_tests'] = (jdep,jfin,test)
 paysindic['France']['positive_rate'] = (jdep,jfin,pos/test)
 
+###################
+# variants, mutation C = L452R portée par Delta, pas portée par Omicron
+data = csv4[1:-1]
+
+jours = sorted(set([x[1][11:] for x in data]))
+
+def vdata(k):
+    vjours = {}
+    for x in data:
+        j = x[1][11:]
+        vjours[j] = to_float(x[k])
+    v = np.array([vjours[j] for j in sorted(vjours)])
+    return(v)
+
+jdep = num_de_jour(jours[0]) - 3 # car les données sont des moyennes sur la semaine passée
+jfin = num_de_jour(jours[-1]) - 3
+L452R = vdata(-1)
+L452R = np.concatenate([np.zeros(jdep - 863),L452R])
+omin = np.max(L452R)
+np.argmax(L452R)
+L452R[:np.argmax(L452R)] = omin
+L452R = (100 - L452R) - (100 - omin)
+
+
+paysindic['France']["taux du variant omicron suspecté"] = (863,jfin,L452R)
+nomsvariants = ["taux du variant omicron suspecté"]
+
+#########
 # lissage
 for i in ['icu_patients','hosp_patients',
           'weekly_hosp_admissions','weekly_icu_admissions','new_deaths',
-          'new_cases','new_tests','positive_rate']:
+          'new_cases','new_tests','positive_rate',
+]:
     jdep,jfin,v = paysindic['France'][i]
     paysindic['France'][i] = (jdep,jfin,lissage(v,7,repete = lissagesindicateurs))
-
 ######################################################################
 # donnees google
 ######################################################################
@@ -425,26 +399,9 @@ mobilitepays = dict([(p,mobilitepays[p])
                      if max([x[0] for x in mobilitepays[p]]) == jourmaxmob
                      and min([x[0] for x in mobilitepays[p]]) == jourminmob])
 
-'''
-mobilitepays['France']
-i = nomsmobilites.index('workplaces_percent_change_from_baseline')
-v = [x[i]  for x in mobilitepays['France']]
-plt.plot(v[-100:])
-plt.plot(lissage(v,7,repete=4)[-100:]);plt.grid();plt.show(False)
-'''
-
 ######################################################################
 # données apple
 ######################################################################
-######################################################################
-# données mobilité Apple:
-
-# https://covid19.apple.com/mobility
-# https://covid19-static.cdn-apple.com/covid19-mobility-data/2022HotfixDev15/v3/en-us/applemobilitytrends-2020-12-05.csv
-# https://covid19-static.cdn-apple.com/covid19-mobility-data/2022HotfixDev15/v3/en-us/applemobilitytrends-2020-12-05.csv
-#f = open('applemobilitytrends-2020-12-05.csv','r')
-#s = f.read()
-#f.close()
 
 if recharger and useapple:
     print("chargement des données de mobilité d'Apple")
@@ -517,19 +474,6 @@ if useapple:
     mobilitesapple = vapple
     nomsmobilites = nomsmobilites + mobilitesapple
 
-'''
-mobilitepays['France']
-i = nomsmobilites.index('workplaces_percent_change_from_baseline')
-i = nomsmobilites.index('driving')
-v = [x[i]  for x in mobilitepays['France']]
-plt.plot(v[-100:])
-#plt.plot(lissage(v,7,repete=1)[-100:]);plt.grid();plt.show(False)
-plt.plot(lissage(v,7,repete=2)[-100:]);plt.grid();plt.show(False)
-#plt.plot(lissage(v,7,repete=3)[-100:]);plt.grid();plt.show(False)
-#plt.plot(lissage(v,7,repete=4)[-100:]);plt.grid();plt.show(False)
-# ok
-'''
-
 ######################################################################
 # lissage des mobilites
 
@@ -543,13 +487,6 @@ for p in paysok:
             for i,x in enumerate(mobp):
                 x[im] = lval[i]
 
-'''
-mobilitepays['France']
-i = nomsmobilites.index('workplaces_percent_change_from_baseline')
-v = [x[i]  for x in mobilitepays['France']]
-plt.plot(v[-100:]);plt.grid();plt.show(False)
-'''
-
 ######################################################################
 # eaux usées en France
 ######################################################################
@@ -558,9 +495,14 @@ plt.plot(v[-100:]);plt.grid();plt.show(False)
 # 15-12-2021 stations, et on moyenne
 if recharger:
     print("chargement des eaux usées")
-    csv = chargecsv('https://www.data.gouv.fr/fr/datasets/r/73a551a1-7fd9-4989-9452-36f122930e99',
-                    sep = ';')[:-1] #attention des fois c'est virgule, d'autres c'est point-virgule...
-    lieux_pos = list(set([(x[0],x[5],x[6]) for x in csv[1:]]))
+    url_eaux_usees = 'https://www.data.gouv.fr/fr/datasets/r/fcff0415-2b78-47d7-a5c3-fe9512c65824'
+    csv = chargecsv(url_eaux_usees, sep = ';')[:-1]
+    try:
+        lieux_pos = list(set([(x[0],x[5],x[6]) for x in csv[1:]]))
+    except:
+        print('ah les cons ils ont changé le séparateur...')
+        csv = chargecsv(url_eaux_usees, sep = ',')[:-1]
+        lieux_pos = list(set([(x[0],x[5],x[6]) for x in csv[1:]]))
     lieux = sorted([x[0] for x in lieux_pos])
     lieux_jours = dict([(l,[]) for l in lieux])
     for x in csv[1:]:
@@ -622,13 +564,7 @@ else:
 # on dispose maintenant de
 # indicateurspays: nomsindicateurs, dates variables
 # mobilitepays: nomsmobilites
-# les deux ont la date en premier champ
-# mobilitepays : mêmes date pour tout le monde, de jourminmob à jourfin
-'''
-paysok = [p for p in ['Belgium', 'Cyprus', 'Czechia', 'Denmark', 'Estonia', 'France', 'Ireland', 'Israel', 'Italy', 'Luxembourg', 'Malta', 'Portugal', 'Slovenia', 'Switzerland', 'United Kingdom', 'United States']
-          if p in paysok]
-'''
-# avec l'Allemagne
+
 if  touslespays:
     paysok = [p for p in ['Belgium', 'Cyprus', 'Czechia', 'Denmark', 'Estonia', 'France', 'Germany', 'Ireland', 'Israel', 'Italy', 'Luxembourg', 'Malta', 'Portugal', 'Slovenia', 'Switzerland', 'United Kingdom', 'United States']
           if p in paysok]
@@ -654,25 +590,14 @@ for p in paysok:
     jdep,jfin,v = M[p]['date']
     M[p]['date'] = (jdep, jourfin, np.concatenate([v,[j for j in range(jfin+1,jourfin+1)]]))
 
-#print('------- date: ', M['France']['date'][:2])
-#M['France']['retail_and_recreation_percent_change_from_baseline']
-#M['France']['driving']
-'''
-v = M['France']['workplaces_percent_change_from_baseline'][2]
-plt.plot(v)
-plt.plot(lissage(v,7,repete=4));plt.grid();plt.show(False)
-'''
 ndate = nomsindicateurs.index('date')
 for p in paysok:
     for indic in paysindic[p]:
         M[p][indic] = paysindic[p][indic]
 
-#M['France']['weekly_hosp_admissions']
-'''
-plt.plot(paysindic['France']['total_boosters_per_hundred'][2]);plt.show()
-'''
 lissagesReff = 12
-nomsindicateursReff = ['new_cases', 'new_deaths', 'icu_patients', 'hosp_patients', 'weekly_hosp_admissions', 'weekly_icu_admissions','new_tests','positive_rate']
+nomsindicateursReff = ['new_cases', 'new_deaths', 'icu_patients', 'hosp_patients', 'weekly_hosp_admissions', 'weekly_icu_admissions','new_tests','positive_rate',
+                       ]
 nomsindicateursnonR = ['people_vaccinated', 'people_fully_vaccinated', 'people_vaccinated_per_hundred','people_fully_vaccinated_per_hundred','total_boosters', 'total_boosters_per_hundred']
 
 for p in paysok:
@@ -684,7 +609,6 @@ for p in paysok:
                     derive=7,maxR = 3)
             M[p]['R' + indic] = (jdeb,jfin,rv)
 
-        
 nomsindicateursR = ['R' + x for x in nomsindicateursReff]
 nomsindicateursM = nomsindicateurs + nomsindicateursR
 
@@ -722,35 +646,6 @@ nomsmobilites = nomsmobilites + nomssaisons
 for p in paysok:
     for s in range(4):
         M[p][nomssaisons[s]] = (jourminmob,jourfinsaisons,vectsaisons[s] + 1)
-
-######################################################################
-# on ajoute le mois: en fait non, ca donne des prévisions moins bonnes
-mois = [-1]*(jourfin + 1 - jourminmob)
-def smois(m):
-    s = str(m)
-    if m <10:
-        s = '0' + s
-    return(s)
-
-moismois = [smois(m) for m in range(1,13)]
-vectmois = [[] for k in range(12)]
-
-for s in range(12):
-    vs = mois[:]
-    for j in range(jourminmob,jourfin + 1):
-        js = jour_de_num[j]
-        if js[5:7] == moismois[s]:
-            vs[j - jourminmob] = 1
-        else:
-            vs[j - jourminmob] = -1 + random.random() * 0.1 # pour éviter les déterminants nuls
-    vs = lissage(vs,7,repete = 6) # attention: longueur impaire pour la fenetre de lissage
-    vectmois[s] = vs
-
-if False:
-    nomsmobilites = nomsmobilites + nomsmois
-    for p in paysok:
-        for s in range(12):
-            M[p][nomsmois[s]] = (jourminmob,jourfin,vectmois[s])
 
 ######################################################################
 # utilisation des vaccinés
@@ -797,22 +692,6 @@ for p in paysok:
 
 nomsmobilites = nomsmobilites # + ['infected_per_hundred']
 
-'''
-plt.plot(M['France']['people_vaccinated_per_hundred'][2])
-plt.plot(M['France']['total_boosters_per_hundred'][2])
-plt.grid();plt.show(False)
-plt.plot(M['France']['walking'][2]);plt.grid();plt.show()
-plt.plot(M['France']['infected_per_hundred'][2])
-plt.grid();plt.show(False)
-'''
-
-'''
-mobilitepays['France']
-i = nomsmobilites.index('workplaces_percent_change_from_baseline')
-v = [x[i]  for x in mobilitepays['France']]
-plt.plot(v[-200:]);plt.grid();plt.show(False)
-'''
-
 ######################################################################
 ######################################################################
 # Désormais M contient les données des pays: mobilite, indicateurs, Reff des indicateurs
@@ -824,8 +703,6 @@ print('dates des dernières données pour la France')
 for i in sorted(M['France'],key = lambda x: M['France'][x][1]):
     print(M['France'][i][1],jour_de_num[M['France'][i][1]],i)
 
-#for i in nomsmobilites:
-#    print(jour_de_num[M['France'][i][1]],i)
 ######################################################################
 # correlations, overlap complet: le plus court bouge dans le plus long
 
@@ -889,7 +766,7 @@ def nomsindicateursMp(p):
     r = [x for x in nomsindicateursM
          if x in paysindic[p] or x in ['R' + y for y in paysindic[p]]]
     if p == 'France':
-        r = r + nomseauxusees
+        r = r + nomseauxusees + nomsvariants
     return(r)
 
 def nomsindicateursRp(p):
@@ -904,9 +781,9 @@ correlations = dict([(p,dict([(indic,{})
                      for p in paysok])
 
 mincorrelation = 0.034
-
 touteslesdependances = False
 eauxuseesdependances = True
+variantsdependances = True
 
 for p in paysok:
     for indic in nomsindicateursRp(p):
@@ -918,9 +795,12 @@ for p in paysok:
                 correlations[p][indic][m] = (d,c)
         for indic1 in (([x for x in nomsindicateursMp(p) if x != 'date']
                         if touteslesdependances else nomsindicateursRp(p))
-                       + (nomseauxusees if p == 'France' and eauxuseesdependances else [])):
+                       + (nomseauxusees if p == 'France' and eauxuseesdependances else [])
+                       + (nomsvariants if p == 'France' and variantsdependances else [])):
             x0,x1,x = M[p][indic1]
             d,c = correlation(x,y,x0,y0)
+            if indic1 == "taux du variant omicron suspecté":
+                print(d,c,indic,indic1)
             if d != 0 and abs(c) > mincorrelation:
                 correlations[p][indic][indic1] = (d,c)
 
@@ -933,11 +813,6 @@ for p in paysok:
                    key = lambda i1: - abs(correlations[p][i][i1][1]))
         d = [(i1,correlations[p][i][i1]) for i1 in l]
         correlations[p][i] = dict(d[:ncorrelationsmax])
-
-#correlations['France']['Rweekly_hosp_admissions']
-#correlations['France']['Rweekly_hosp_admissions']['Rnew_cases']
-#correlations['France']['Rnew_cases']
-#correlations['France']['Rhosp_patients']
 
 ######################################################################
 # calculs des coefficients de prevision
@@ -996,19 +871,14 @@ def coefficients_prev_lin(p,i,jourdepartprevision = None):
     except:
         return(C,dependances,0)
 
-#p = 'France'
-#i = 'Rweekly_hosp_admissions'
-#jourdepartprevision = None
-coefficients_prev_lin('France','Rweekly_hosp_admissions')
-sorted(correlations['France']['Rweekly_hosp_admissions'])
-
-
 # déterminé avec 100 calculs de prévisions dans le passé, voir à la fin du fichier.
 #15.958633688486707 (0.77, 0.89, 0.83, 0.68)
-coefvaccinsc = 0.77 # proportion de vaccinés qui sont protégés.
-coefvaccinsc3 = 0.89 # proportion de vaccinés avec 3 doses qui sont protégés.
-coefinfectes = 0.83 # proportion d'infectés qui sont protégés.
-coefinfectes_vaccines = 0.68 # proportion d'infectés qui sont vaccinés.
+#15.521863755385837 (0.74, 0.81, 0.52, 0.63)
+#15.522096673781599 (0.77, 0.97, 0.16, 0.12)
+coefvaccinsc = 0.74 # proportion de vaccinés qui sont protégés.
+coefvaccinsc3 = 0.97 # proportion de vaccinés avec 3 doses qui sont protégés.
+coefinfectes = 0.16 # proportion d'infectés qui sont protégés.
+coefinfectes_vaccines = 0.12 # proportion d'infectés qui sont vaccinés.
 
 def coef_naif(M,p,j):
     decal = 17
@@ -1101,18 +971,6 @@ def prevoit_jour(M,CP,p,i,j):
         vj = v[jfini - jdepi] # dernière valeur connue, mais on devrait avoir déjà extrapolé.
     return(vj)
 
-'''
-CP = coefficients_prevision(M)
-
-CP['France']['Rweekly_hosp_admissions']
-p = 'France'
-i = 'Rweekly_hosp_admissions'
-CP['France']['Rweekly_icu_admissions']
-
-jdep,jfin,v = M[p][i]
-j = jdep + len(v) # premier jour de l'avenir
-prevoit_jour(M,CP,p,i,j) # plante car certaines dependances finissent avant j - decalage
-'''
 # prevoit tous les indicateurs R à partir du premier jour où un indicateur est inconnu,
 # ou bien d'un jour donné (jourdepartprevision)
 # et jusqu'à jourfinprevision
@@ -1203,268 +1061,6 @@ for i in nomsindicateursR:
 
 
 print('----------------------------------------------------------------------')
-'''
-p = 'France'
-i = 'Rpositive_rate'
-jdep0,jfin0,v = M[p][i]
-jdep,jfin,v = P1[p][i]
-plt.plot(P1[p][i][2][50: jaujourdhui+30 -jdep])
-plt.plot(M[p][i][2][50:])
-plt.plot([prevoit_jour(P1,CPj,p,i,j) for j in range(jdep+50, jaujourdhui+30)])
-plt.grid();plt.show()
-
-p = 'France'
-i = 'Rhosp_patients'
-jdep,jfin,v = P1[p][i]
-plt.plot(P1[p][i][2][50: jaujourdhui+30 -jdep])
-plt.plot(lissage([prevoit_jour(P1,CPj,p,i,j) for j in range(jdep+50, jaujourdhui+30)],
-                 7,repete = 0))
-plt.grid();plt.show()
-
-j = jourfin - jaujourdhui + 20
-i = 'positive_rate' #'new_cases'
-jdep,jfin,v = M['France'][i]
-
-plt.plot(P1['France']['R' + i][2][550:])
-plt.plot(M['France']['R' + i][2][550:])
-plt.grid();plt.show()
-
--------------------
-Rpositive_rate
-29 0.38 walking
-25 -0.37 printemps
-30 0.36 retail_and_recreation_percent_change_from_baseline
-30 -0.35 eaux usées
-30 0.35 workplaces_percent_change_from_baseline
-
--------------------
-Rpositive_rate
-25 -0.37 printemps
-30 0.36 retail_and_recreation_percent_change_from_baseline
-30 -0.35 eaux usées
-30 0.35 workplaces_percent_change_from_baseline
-27 -0.35 residential_percent_change_from_baseline
-
-for i in ['Rpositive_rate',
-          #'residential_percent_change_from_baseline',
-          #'printemps',
-          #'retail_and_recreation_percent_change_from_baseline',
-          #'eaux usées',
-          'workplaces_percent_change_from_baseline'
-         ]:
-        jdep,jfin,v = P1['France'][i]
-        #m = np.max(np.abs(v[jaujourdhui - 40 - jdep:])) if i != 'Rpositive_rate' else 1
-        m = 1 if i != 'Rpositive_rate' else 0.01
-        print(m)
-        plt.plot(np.array(P1['France'][i][2][jaujourdhui - 240 - jdep:])/m)
-        plt.plot(np.array(M['France'][i][2][jaujourdhui - 240 - jdep:])/m)
-
-plt.grid();plt.show()
-
-
-p = 'France'
-i = 'Rpositive_rate'
-jdep,jfin,v = P1[p][i]
-C,dependances,e = CPj[p][i]
-L = np.zeros(len(dependances))
-lv = []
-for j in range(jaujourdhui - 540, jaujourdhui+30):
-    coef = coef_naif(P1,p,j)
-    for ix,x in enumerate(dependances): 
-        dec,c = correlations[p][i][x]
-        jdepx,jfinx,vx = P1[p][x]
-        L[ix] = vx[j - dec - jdepx]
-        if x in nomsindicateursR:
-            L[ix] = L[ix] / coef # on remet naif
-    vj = L @ C # valeur prévue pour le jour j
-    if i in nomsindicateursR:
-        vj = vj * coef # on enleve naif
-    lv.append(vj)
-
-plt.plot(lv)
-plt.plot([prevoit_jour(P1,CPj,p,i,j) for j in range(jaujourdhui - 540, jaujourdhui+30)])
-plt.plot(P1[p][i][2][jaujourdhui - 540 - jdep: jaujourdhui+30 -jdep])
-plt.grid();plt.show()
-
-p = 'France'
-i = 'Rpositive_rate'
-jdep,jfin,v = P1[p][i]
-plt.plot([prevoit_jour(P1,CPj,p,i,j) for j in range(jaujourdhui - 540, jaujourdhui+30)])
-plt.plot(P1[p][i][2][jaujourdhui - 540 - jdep: jaujourdhui+30 -jdep])
-plt.grid();plt.show()
-
-----------------
-p = 'France'
-i = 'Rpositive_rate'
-jourdepartprevision = jaujourdhui + 1
-
-#def coefficients_prev_lin(p,i,jourdepartprevision = None):
-jdepi,jfini,vi = M[p][i]
-joursdepart = [jdepi]
-joursfin = [jdepi + len(vi) - 1]
-for x in correlations[p][i]:
-    dec,c = correlations[p][i][x]
-    jdep,jfin,v = M[p][x]
-    joursdepart.append(jdep + dec) #debut de prevision possible
-    joursfin.append(jdep + dec + len(v) - 1) #debut de prevision possible
-jourdepprev = max(joursdepart)
-jourfinprev = min(joursfin)
-if jourdepartprevision != None:
-    jourfinprev = min(jourfinprev,jourdepartprevision)
-dureeprev = jourfinprev - jourdepprev + 1
-dependances = sorted(correlations[p][i]) # pour éviter que l'ordre change inopinément
-C = np.zeros(len(dependances))
-try:
-L = np.zeros((dureeprev,len(dependances)))
-for ix,x in enumerate(dependances):
-    dec,c = correlations[p][i][x]
-    jdep,jfin,v = M[p][x]
-    L[:,ix] = extrait_vecteur(jdep,v,jourdepprev-dec,jourfinprev-dec)
-
-H = extrait_vecteur(jdepi,vi,jourdepprev,jourfinprev)
-favoriser_jours_recents = True
-Q = matricenorme(dureeprev)
-LtQ = np.transpose(L) @ Q
-A = LtQ @ L
-B = LtQ @ H
-e = 0
-try:
-C = np.linalg.inv(A) @ B
-H1 = L @ C - H
-e = np.linalg.norm(H1) / (0.00000001 + np.linalg.norm(H))
-plt.plot(H)
-plt.plot(H1)
-plt.grid();plt.show()
-
-H  = np.array(H)
-plt.plot((H-1)/np.max(np.abs(H-1)),linewidth=4)
-for ix,x in enumerate(dependances):
-  plt.plot( L[:,ix]/np.max(np.abs( L[:,ix])))
-
-plt.grid();plt.show()
-
-
-p = 'France'
-i = 'Rpositive_rate'
-jdep,jfin,v = P1[p][i]
-plt.plot(P1[p][i][2][: jaujourdhui+30 -jdep])
-plt.plot([prevoit_jour(P1,CPj,p,i,j) for j in range(jdep, jaujourdhui+30)])
-plt.grid();plt.show()
-
-p = 'France'
-i = 'Rhosp_patients'
-jdep,jfin,v = P1[p][i]
-plt.plot(P1[p][i][2][50: jaujourdhui+30 -jdep])
-plt.plot(lissage([prevoit_jour(P1,CPj,p,i,j) for j in range(jdep+50, jaujourdhui+30)],
-                 7,repete = 0))
-plt.grid();plt.show()
-
-plt.plot([coef_naif(P1,p,j) for j in range(jaujourdhui-40,jaujourdhui+40)])
-plt.grid();plt.show()
-
-plt.plot(P1[p]['infected_per_hundred'][2])
-plt.grid();plt.show()
-M[p]['people_vaccinated_per_hundred'][:2]
-plt.plot(P1[p]['total_boosters_per_hundred'][2])
-plt.grid();plt.show()
-M[p]['total_boosters_per_hundred'][:2]
-
-(array([-0.00100579, -0.05474329, -0.01370269,  0.01113074,  0.00485805]),
-['eaux usées', 'printemps', 'retail_and_recreation_percent_change_from_baseline', 'walking', 'workplaces_percent_change_from_baseline'], 0.10784816998664316)
-
-plt.plot(P1['France'][i][2][550:])
-plt.plot(M['France'][i][2][550:])
-plt.grid();plt.show()
-
-plt.plot(P1['France']['people_fully_vaccinated_per_hundred'][2])
-plt.plot(M['France']['people_fully_vaccinated_per_hundred'][2])
-
-plt.grid();plt.show()
-plt.plot(P1['France']['total_boosters_per_hundred'][2])
-plt.plot(M['France']['total_boosters_per_hundred'][2])
-plt.grid();plt.show()
-
-for i in P1['France']:
-    print(P1['France'][i][:2], M['France'][i][:2],i)
-
-j = jourfin - jaujourdhui - 10
-for i in P1['France']:
-    if i in nomsmobilites:
-        plt.plot(P1['France'][i][2][-j:]/np.max(np.abs(P1['France'][i][2][-j:])))
-
-plt.grid();plt.show()
-
-j = jourfin - jaujourdhui + 20
-for i in ['date', 'new_cases', 'new_deaths', 'reproduction_rate', 'icu_patients', 'hosp_patients', 'weekly_icu_admissions', 'weekly_hosp_admissions', 'new_tests', 'positive_rate', 'people_vaccinated', 'people_fully_vaccinated', 'people_vaccinated_per_hundred', 'people_fully_vaccinated_per_hundred']:
-    plt.plot(P1['France'][i][2][-j:]/np.max(np.abs(P1['France'][i][2][-j:])))
-
-plt.grid();plt.show()
-
-j = jourfin - jaujourdhui + 20
-for i in P1['France']:
-    plt.plot(P1['France'][i][2][-j:]/np.max(np.abs(P1['France'][i][2][-j:])))
-
-plt.grid();plt.show()
-
-j = jourfin - jaujourdhui + 20
-for i in nomsmobilites:
-    plt.plot(P1['France'][i][2][-j:]/np.max(np.abs(P1['France'][i][2][-j:])))
-
-plt.grid();plt.show()
-
-j = jourfin - jaujourdhui + 20
-for i in nomsindicateurs:
-    plt.plot(P1['France'][i][2][-j:]/np.max(np.abs(P1['France'][i][2][-j:])))
-
-plt.grid();plt.show()
-
-
-for i in ['total_boosters_per_hundred']:
-    plt.plot(P1['France'][i][2][-j:]/np.max(np.abs(P1['France'][i][2][-j:])))
-
-plt.grid();plt.show()
-
-M['France']['total_boosters_per_hundred'][:2]
-P1['France']['total_boosters_per_hundred'][:2]
-plt.plot(P1['France']['total_boosters_per_hundred'][2])
-plt.plot(M['France']['total_boosters_per_hundred'][2])
-plt.grid();plt.show()
-plt.plot(P1['France']['people_fully_vaccinated_per_hundred'][2])
-plt.plot(M['France']['people_fully_vaccinated_per_hundred'][2])
-
-plt.grid();plt.show()
-
-for i in ['infected_per_hundred']:
-        plt.plot(P1['France'][i][2][-j:])
-
-plt.grid();plt.show()
-
-for i in ['retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline', 'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline', 'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline']:
-        plt.plot(P1['France'][i][2][-j:])
-
-plt.grid();plt.show()
-
-for i in ['driving', 'walking', 'transit']:
-        plt.plot(P1['France'][i][2][-j:])
-
-plt.grid();plt.show()
-
-for i in ['printemps', 'été', 'automne', 'hiver']:
-        plt.plot(P1['France'][i][2][:])
-
-plt.grid();plt.show()
-
-for i in ['printemps', 'été', 'automne', 'hiver']:
-        plt.plot(M['France'][i][2][:])
-
-plt.grid();plt.show()
-
-plt.plot(P1['France']['infected_per_hundred'][2]);plt.grid();plt.show()
-plt.plot(M['France']['walking'][2]);plt.grid();plt.show()
-plt.plot(P1['France']['walking'][2]);plt.grid();plt.show()
-plt.plot(P1['France']['positive_rate'][2]);plt.grid();plt.show()
-plt.plot(P1['France']['Rpositive_rate'][2]);plt.grid();plt.show()
-'''
 
 DIRPREV = 'previsions_quotidiennes/'
 debuttrace = 300
@@ -1504,35 +1100,63 @@ pickle.dump(lespics,f)
 f.close()
 
 ######################################################################
-# pas vraiment utilisé
-def trace_previsions(p,P1,dureefutur = 28):
-    j = num_de_jour(aujourdhui) 
-    for i in nomsindicateursRp(p) + nomsindicateursReffp(p):
-        debut = debuttrace
+#
+
+def trace_previsions(p,indicateurs,P1):
+    for i in indicateurs:
         jdep,jfin,v = M[p][i]
+        debut = jaujourdhui - jdep - 60 
         vmax = abs(np.max(v))
         lcourbes = []
-        v1 = np.minimum(P1[p][i][2][debut:j - jdep + dureefutur],
+        jf = jfin + 1
+        df = 60
+        dferreurs = min(max(erreurs_moy[p][i]),8*7)
+        vP1 = P1[p][i][2]
+        v1 = np.minimum(vP1[debut:jf - jdep + df],
                         2*vmax)
-        lcourbes += [(zipper([jour_de_num[j] for j in range(jdep + debut,j + dureefutur)],
+        ve = np.array([erreurmoyenne(p,i,j-jf) for j in range(jf, jf + dferreurs)])
+        vsup = np.minimum(np.concatenate([vP1[debut:jf - jdep],
+                                          np.array([(1 + ve[j-jf] / 100) * vP1[j - jdep]
+                                                    for j in range(jf, jf + dferreurs)])]),
+                          2*vmax)
+        vinf = np.minimum(np.concatenate([vP1[debut:jf - jdep],
+                                          np.array([(max(0,1 - ve[j-jf] / 100)) * vP1[j - jdep]
+                                                    for j in range(jf, jf + dferreurs)])]),
+                          2*vmax)
+        lcourbes += [(zipper([jour_de_num[j] for j in range(jdep + debut,jf + df)],
                              v1),
-                      jour_de_num[j], prev)]
-        lcourbes += [(zipper([jour_de_num[j] for j in range(jdep + debut,jfin+1)],
-                             v[debut:]),
-                      i,real)]
-        options = "series: {0: { lineDashStyle: [10, 2] }, 1 : { lineWidth: 4, color : 'blue' }}"
-        titre = i
+                      jour_de_num[jf], prev)]
+        for vp in [vsup, vinf]:
+            lcourbes += [(zipper([jour_de_num[j] for j in range(jdep + debut,jf + dferreurs)],
+                                 vp),
+                          jour_de_num[jf], prev)]
+        lcourbes = lcourbes[::-1] +  [(zipper([jour_de_num[j] for j in range(jdep + debut,jfin+1)],
+                                              v[debut:]),
+                                       i,real)]
+        lj = []
+        for (courbe,nom,t) in lcourbes:
+            lj = lj + [x[0] for x in courbe]
+        dcourbes = [dict(courbe) for (courbe,nom,t) in lcourbes]
+        lj = sorted(list(set(lj))) # liste des jours en abcisse
+        courbemin = [(j,min([dcourbe[j] for dcourbe in dcourbes if j in dcourbe]))
+                     for j in lj]
+        courbemax = [(j,max([dcourbe[j] for dcourbe in dcourbes if j in dcourbe]))
+                     for j in lj]
+        lcourbes = [(courbemax,'',prev)] + lcourbes + [(courbemin,'',prev)]
+        titre = traduitindicateur(i)
+        options = ('series: {'  #https://material.io/design/color/the-color-system.html#tools-for-picking-colors
+                   + " 0: { areaOpacity : 1.0 ,  color : '#B0BEC5', lineWidth: 0}," # courbemax #80CBC4
+                   + ' '.join([str(k) + ": {areaOpacity : 0.0 , lineDashStyle: [10, 2] }, " 
+                               for k in range(1,len(lcourbes) - 3)])
+                   + str(len(lcourbes) - 3)
+                   + " : { areaOpacity : 0.0 , lineWidth: 4, color : 'blue', lineDashStyle: [6, 2]}," #prevision
+                   + str(len(lcourbes) - 2) + " : { areaOpacity : 0.0 , lineWidth: 4, color : 'blue' }," #reelle
+                   + str(len(lcourbes) - 1) + ": { areaOpacity : 1.0 ,  color : 'white', lineWidth: 0}," # courbemin
+                   + '}')
         nomchart = i
-        print(nomchart)
-        lescharts[p][('prévision',nomchart)] = trace_charts(lcourbes, titre = titre, options = options)
-
-'''
-CPj = coefficients_prevision(M,jourdepartprevision = j)
-P1 = prevoit_indicateursR(M,CPj,jourdepartprevision = j)
-
-for p in paysok:
-    trace_previsions(p,P1,dureefutur = 56)
-'''
+        #print(nomchart)
+        lescharts[p][('prévisions avec erreurs',nomchart)] = trace_charts(lcourbes, titre = titre,
+                                                                          options = options, area = True)
 
 ######################################################################
 # previsions à 28 jours dans le passé
@@ -1572,18 +1196,18 @@ traduit = {'hosp_patients': 'nombre de patients hospitalisés',
            'new_cases' : 'nombre de nouveaux cas',
            'positive_rate': 'taux de positivité des tests',
            'weekly_hosp_admissions': 'nombre de patients hospitalisés par jour',
-           'new_deaths': 'nombre de nouveaux décès'}
+           'new_deaths': 'nombre de nouveaux décès',}
 
 dtraduitindicateur = {'hosp_patients': 'hospitalisations',
-                     'icu_patients' : 'soins intensifs',
-                     'new_cases' : 'nouveaux cas',
-                     'positive_rate': 'taux de positivité',
-                     'weekly_hosp_admissions': 'nouvelles hospitalisations',
-                     'new_deaths': 'nouveaux décès'}
+                      'icu_patients' : 'soins intensifs',
+                      'new_cases' : 'nouveaux cas',
+                      'positive_rate': 'taux de positivité',
+                      'weekly_hosp_admissions': 'nouvelles hospitalisations',
+                      'new_deaths': 'nouveaux décès',}
 
 def traduitindicateur(i):
     if i[0] == 'R':
-        return('R' + traduitindicateur(i[1:]))
+        return('R ' + traduitindicateur(i[1:]))
     elif i in dtraduitindicateur:
         return(dtraduitindicateur[i])
     else:
@@ -1634,7 +1258,7 @@ def trace_previsions_passes(p,indicateurs,P1s,dureefutur = 28):
 
 def trace_donnees(p,donnees):
     for i in donnees:
-        debut = 600-duree_evaluation
+        debut = 600-duree_evaluation if i != "taux du variant omicron suspecté" else 600-duree_evaluation + 260
         jdep,jfin,v = M[p][i]
         jfin2 = min(jfin,jaujourdhui)
         vmax = abs(np.max(v))
@@ -1650,7 +1274,15 @@ def trace_donnees(p,donnees):
 ##########################
 # les erreurs de prévision
 
-erreur_rea_28, erreur_hospi_28 = 0,0
+#erreur_rea_28, erreur_hospi_28, erreur_cases_28 = 0,0,0
+
+erreurs_moy = dict([(p,{}) for p in paysok])
+
+def erreurmoyenne(p,i,j):
+    k = j // 7
+    dj = j % 7
+    e = erreurs_moy[p][i][7*k] * (1 - dj / 7) + erreurs_moy[p][i][7*(k+1)] * dj / 7
+    return(e)
 
 try:
     f = open(DIRPREV + 'erreurs.pickle','rb')
@@ -1673,20 +1305,24 @@ def score(p,erreurs): # lerreurs liste d'erreurs pour les indicateurs
             if k in [1,2,3,4,5,6] and i in iscore1: #or i in iscore2: # semaines pour le score
                 s.append(100*erreurs[p][i][7*k])
     #print(s)
-    return(moyenne(s))
+    return(np.sqrt(np.mean(np.array(s)**2)))
 
 
 def bilan_erreurs(listepays):
     scores = {}
-    global erreur_rea_28, erreur_hospi_28
+#    global erreur_rea_28, erreur_hospi_28, erreur_cases_28
     erreurs,P1s = previsions_passe(listepays)
     for p in erreurs:
         for i in erreurs[p]:
             for k in range(1,nsemaines + 1):
-                erreurs[p][i][7*k] = sum(erreurs[p][i][7*k])/ len(erreurs[p][i][7*k])
+                erreurs[p][i][7*k] = np.sqrt(np.mean(np.array(erreurs[p][i][7*k])**2)) #np.mean(erreurs[p][i][7*k])
     for p in erreurs:
         lindic = [i for i in nomsindicateursR + nomsindicateursReff if i in erreurs[p]]
         s  = score(p,erreurs)
+        for i in lindic:
+            erreurs_moy[p][i] = dict([(7*k,100*erreurs[p][i][7*k]) for k in range(1,nsemaines+1)])
+            erreurs_moy[p][i][0] = 0
+        scores[p] = s
         if p == 'France':
             print('-------------------------------')
             print('%s   7j' % (p[:16]+'.'*(16-len(p))), end = '')
@@ -1697,18 +1333,13 @@ def bilan_erreurs(listepays):
             for i in lindic:
                 print('%s' % i[:16]+'.'*(16-len(i)), end = '')
                 for k in range(1,nsemaines+1):
-                    v = 100*erreurs[p][i][7*k]
+                    v = erreurs_moy[p][i][7*k]
                     if v > 50:
                         print('     ', end = '')
                     else:
                         print(' %3.0f%s' % (v,'%'), end = '')
                 print('')
-                if i == 'icu_patients':
-                    erreur_rea_28 = 100*erreurs[p][i][7*4]
-                if i == 'hosp_patients':
-                    erreur_hospi_28 = 100*erreurs[p][i][7*4]
-        print('--- ' + p + ' score: %3.2f' % s)
-        scores[p] = s
+            print('--- ' + p + ' score: %3.2f' % s)
     return(scores,erreurs,P1s)
 
 # prend du temps
@@ -1726,7 +1357,8 @@ f.close()
 # tracés google charts et tableaux de données pour la synthese html
 
 atracer = ['hosp_patients','icu_patients','positive_rate',
-           'new_cases','weekly_hosp_admissions','new_deaths']
+           'new_cases','weekly_hosp_admissions','new_deaths',
+]
 atracer = atracer + ['R' + x for x in atracer]
 
 def atracerp(p):
@@ -1734,10 +1366,12 @@ def atracerp(p):
 
 for p in paysok:
     print(p)
-    trace_previsions_passes(p,
-                            atracerp(p),
-                            P1s,
-                            dureefutur = 30)
+    trace_previsions(p,atracerp(p),P1)
+    if p == 'France':
+        trace_previsions_passes(p,
+                                atracerp(p),
+                                P1s,
+                                dureefutur = 30)
 
 mobilitesgoogle = ['retail_and_recreation_percent_change_from_baseline',
                    'grocery_and_pharmacy_percent_change_from_baseline',
@@ -1746,7 +1380,9 @@ mobilitesgoogle = ['retail_and_recreation_percent_change_from_baseline',
                    'workplaces_percent_change_from_baseline',
                    'residential_percent_change_from_baseline']
 
-trace_donnees('France',mobilitesgoogle + (mobilitesapple if useapple else []) + nomseauxusees)
+trace_donnees('France',
+              mobilitesgoogle + (mobilitesapple if useapple else [])
+              + nomseauxusees + nomsvariants)
 
 def tableaux_erreurs(erreurs):
     taberreurs = {}
@@ -1763,15 +1399,27 @@ def tableaux_erreurs(erreurs):
     return(taberreurs)
 
 tableauxerreurs = tableaux_erreurs(erreurs)
-#tableaux_erreurs(erreurs)['France']
 
 def charthtml(c):
     return(c['script'] + c['div'])
 
+
+def ecritpreverreurs(f,p):
+    f.write('<a id="previsions ' + p + '"></a>' + vspace
+            + '<h3>' + p + '</h3>')
+    f.write("<p>Prévisions: courbes en pointillé. Les courbes supérieures et inférieures correspondent aux prévisions avec une erreur prise comme l'erreur moyenne (quadratique) sur les prévisions passées.<br>"
+            + "Courbe en trait plein: données réelles.</p>"
+            + table2([[tabs([(traduitindicateur(nom),
+                              charthtml(leschartsfun(p,('prévisions avec erreurs',nom))))
+                             for nom in atracerp(p) if nom[0] != 'R']),
+                       tabs([(traduitindicateur(nom),
+                              charthtml(leschartsfun(p,('prévisions avec erreurs',nom))))
+                             for nom in atracerp(p) if nom[0] == 'R'])]]))
+
 def ecritprevpassees(f,p):
     f.write('<a id="previsions ' + p + '"></a>' + vspace
             + '<h3>' + p + '</h3>')
-    f.write('Précision moyenne<a href="#precision">[2]</a>: <b>' + ('%3.2f' % scores[p]) + '%</b><p>')
+    f.write('Prévisions passées. Précision moyenne <a href="#precision">[2]</a>: <b>' + ('%3.2f' % scores[p]) + '%</b><p>')
     if True: #scores[p] <= 20:
         f.write("<p>Courbe en trait plein: données réelles.<br>"
                 + "Courbes en pointillés: données approximées puis prévues à partir du jour \(j\) "
@@ -1812,8 +1460,8 @@ def chartpicjours(p,indicateurs):
 
 def ecritpics(f,p):
     f.write('<a id="pics"></a>'
-            + vspace + "<h4>Évolution des pics prévus pour les indicateurs du Covid19.</h4>"
-            + "Le pic est déterminé par le jour où le R associé atteint son premier maximum local.<p>"
+            + vspace + "<h4>Évolution des pics prévus pour les indicateurs du Covid19 (France).</h4>"
+            + "Le pic est déterminé par le premier jour où le R associé atteint la valeur 1 en décroissant.<p>"
             + 'En abcisse: jour où a été effectuée la prévision.<p>'
             + "Les irrégularités ont lieu lorsque des données manquent pour les prévisions (typiquement lorsque les sites où se trouvent les données sont mis à jour ou bien inaccessibles).<p>"
             + table2([['<h5>Jours prévus pour les pics des indicateurs</h5>',
@@ -1827,6 +1475,7 @@ def ecritpics(f,p):
 # upload la synthèse sur cp.lpmib.fr:
 # https://cp.lpmib.fr/medias/covid19/_synthese.html
 ######################################################################
+
 def leschartsfun(p,x):
     try:
         return(lescharts[p][x])
@@ -1849,7 +1498,7 @@ f.write('''
   </button>
   <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
     <div class="navbar-nav">
-             <a class="nav-item nav-link active" href="#pics">Évolution des pics prévus</a>
+             <a class="nav-item nav-link active" href="#pics">Évolution des pics prévus (France)</a>
              '''
         + '\n'.join(['<a class="nav-item nav-link active" href="#previsions ' + p + '">'
                      + p + '</a>'
@@ -1890,13 +1539,13 @@ f.write(table2([["<h5>Pics prévus pour la France:</h5><p>"
                  '''<h5>Méthode</h5>
                  La méthode employée est mathématique, elle est décrite en détails en anglais dans <a href="https://www.medrxiv.org/content/10.1101/2021.04.13.21255418v1">ce preprint sur MedRxiv</a>, et en français <a href="https://hal.archives-ouvertes.fr/hal-03183712v1">ici</a>.<br>
                  Elle procède en trois étapes.
-                 <ul><li>La première est de déterminer des décalages de temps entre les données temporelles <a href="#donnees">[0],</a>:
+                 <ul><li>La première est de déterminer des décalages de temps entre les données temporelles <a href="#donnees">[0]</a>:
                      <ul><li> les contextes (mesures quotidiennes de mobilité de Google, d'Apple, date, saison, et, pour la France, taux de coronavirus dans les eaux usées),
                          <li> les indicateurs de l'épidémie (hospitalisations, soins critiques, cas positifs, tests, décès),
                          <li> les taux de reproduction des indicateurs (le R effectif <a href="#Reff">[3]</a>).
                      </ul>
-                     Cela se fait en calculant les décalages qui maximisent les corrélations entre indicateurs et contextes.
-                    <li> Puis on détermine les transformations linéaires \(C\) qui permettent, à partir des 5 données décalées les plus corrélées \(A\), d'obtenir les R effectifs \(B\) avec des erreurs \(||AC-B||\) minimales  (qui s'avèrent être de l'ordre de 5%).
+                     Cela se fait en calculant les décalages qui maximisent les corrélations entre données.
+                    <li> Puis on détermine les transformations linéaires \(C\) qui permettent, à partir des 5 données décalées les plus corrélées \(A\), d'obtenir les R effectifs \(B\) avec des erreurs \(||AC-B||\) minimales  (qui s'avèrent être de l'ordre de 5%, sauf pour le taux de positivité des tests, pour lequel l'erreur est variable mais supérieure à 10%).
                     <li> Enfin on utilise ces transformations linéaires pour prévoir les valeurs futures des R effectifs, puis, par intégration discrète, des indicateurs de l'épidémie.</ul>
 
                  On a adapté cette méthode pour tenir compte de la proportion de la population qui est vaccinée, ainsi que de la proportion estimée de la population qui a été en contact avec le virus. Le principe est de diviser le R réel par la proportion de la population qui n'est ni vaccinée, ni n'a été infectée, de réaliser les prévisions avec ces valeurs de R (comme si la population était entièrement naive face au virus), puis de multiplier par la même proportion pour obtenir la prévision réelle.<br>
@@ -1910,27 +1559,40 @@ f.write(table2([["<h5>Pics prévus pour la France:</h5><p>"
 Ces proportions sont déterminées de manière à minimiser l'erreur sur les prévisions de 1 à 6 semaines des nombres de patients en soins intensifs ou hospitalisés sur les '''
                  + str(mois_evaluation) + ''' derniers mois.<p>
                  La première est assez précisément déterminée, mais les 3 autres beaucoup moins.<p>'''
-                 + '''La méthode produit alors des prévisions en France à 1 mois avec une erreur moyenne sur les '''
+                 + '''La méthode produit alors des prévisions en France à 14 jours avec une erreur moyenne sur les '''
                  + str(mois_evaluation) + ''' derniers mois de <b>'''
-                 + ("%2.f" % erreur_rea_28)
-                 + '''%</b> pour le nombre de patients en soins intensifs, et de <b>''' + ("%2.f" % erreur_hospi_28) + '''%</b> pour le nombre de patients hospitalisés.<p>
-                 ''']]))
+                 + ("%2.f" % erreurs_moy['France']['icu_patients'][14])
+                 + '''%</b> pour le nombre de patients en soins intensifs, et de <b>'''
+                 + ("%2.f" % erreurs_moy['France']['hosp_patients'][14])
+                 + '''%</b> pour le nombre de patients hospitalisés.<br>'''
+                 + '''Pour 1 mois les erreurs sont de '''
+                 + ("%2.f" % erreurs_moy['France']['icu_patients'][28])
+                 + ''' et de '''
+                 + ("%2.f" % erreurs_moy['France']['hosp_patients'][28])
+                 + '''.<p>'''
+                 ]]))
 
 f.write("<h5>La suite présente les prévisions pour la France et d'autres pays.</h5>")
 
 p = 'France'
+ecritpreverreurs(f,p)
 ecritprevpassees(f,p)
 ecritpics(f,p)
 f.write('<h4> Erreurs de prévision moyennes sur 10 mois.</h4>'
         + table2h(tableauxerreurs[p]))
 ####################
 f.write("<a id=\"mobilitesgoogleauxusees\"></a>"
-        + table2([['<h4>Coronavirus dans les eaux usées</h4>',
+        + table2([["<h4>Coronavirus dans les eaux usées, taux du variant omicron suspecté</h4>",
                    '<h4>Données de mobilité de Google ' + ('et Apple' if useapple else '') + '</h4>'],
                   [tabs([(traduitindicateur(nom),
                           leschartsfun(p,('données',nom))['script']
                           + leschartsfun(p,('données',nom))['div'])
-                         for nom in nomseauxusees]),
+                         for nom in nomseauxusees]
+                        +
+                        [(traduitindicateur(nom),
+                          leschartsfun(p,('données',nom))['script']
+                          + leschartsfun(p,('données',nom))['div'])
+                         for nom in nomsvariants]),
                   tabs([(traduitindicateur(nom),
                          leschartsfun(p,('données',nom))['script']
                          + leschartsfun(p,('données',nom))['div'])
@@ -1940,8 +1602,8 @@ f.write("<a id=\"mobilitesgoogleauxusees\"></a>"
 if True:
     for p in sorted([p for p in paysok if p != 'France'],
                     key = lambda p: scores[p]):
-        if scores[p] < 30:
-            ecritprevpassees(f,p)
+        if scores[p] < 40:
+            ecritpreverreurs(f,p)
             try:
                 ecritpics(f,p)
             except:
@@ -1951,7 +1613,7 @@ if True:
         else:
             f.write('<a id="previsions ' + p + '"></a>' + vspace
                     + '<h3>' + p + '</h3>')
-            f.write('Erreurs de prévision > 30%.<p>')
+            f.write('Erreurs de prévision > 40%.<p>')
 ####################
 
 f.write(vspace
@@ -1975,7 +1637,7 @@ f.write(fin1)
 f.close()
 print('synthèse écrite')
 
-if True:
+if uploader:
     os.system('scp previsions_quotidiennes/_synthese.html lpmib@ssh-lpmib.alwaysdata.net:testdjango2/testdjango2/medias/covid19/_synthese.html')
     print('synthèse uploadée')
 
@@ -1985,6 +1647,7 @@ if True:
 
 # on teste avec paystest
 paystest = ['France']
+paysok = paystest
 
 if not testcoefvac:
     print('Pas de test de coefvaccinc, coefinfectes et coefinfectes_vaccines')
@@ -2067,17 +1730,4 @@ for k in range(1,nsemaines + 1):
 #plt.plot(lissage([x[0] for x in res1],7))
 #plt.plot(lissage([moyenne(x[1:3]) for x in res1],7))
 plt.grid();plt.show(False)
-'''
-18.473234716734375 (0.4, 0.42, 0.91, 0.09)
-18.473662388606797 (0.4, 0.33, 0.84, 0.04)
-18.47377801504305 (0.4, 0.58, 0.86, 0.06)
-18.475537410725963 (0.4, 0.11, 0.88, 0.1)
-18.47704262913085 (0.4, 0.98, 0.99, 0.22)
-18.47766840333989 (0.4, 0.62, 0.66, 0.01)
-18.478582291148697 (0.4, 0.32, 0.97, 0.36)
-18.479051271492477 (0.4, 0.25, 0.78, 0.22)
-18.47948846494496 (0.4, 0.41, 0.77, 0.24)
-18.479714402883715 (0.4, 0.27, 0.98, 0.41)
-moyenne 10 premiers [0.39999999999999997, 0.42899999999999994, 0.8640000000000001, 0.175]
-moyenne 5 premiers [0.4, 0.484, 0.8959999999999999, 0.10200000000000001]
-'''
+
